@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; user-select:none; }
+  html, body { height:100%; overflow:hidden; background:#0d0d12; cursor:col-resize; touch-action:none; }
+  body { display:flex; align-items:center; justify-content:center; border-left:1px solid #000; border-right:1px solid #000; }
+  #grip { width:2px; height:44px; border-radius:2px; background:#3a3a4a; transition:all .15s; }
+  body:hover #grip, body.drag #grip { background:#1db954; height:64px; box-shadow:0 0 8px #1db954; }
+</style>
+</head>
+<body title="Ziehen zum Vergrößern/Verkleinern - Doppelklick: Standardbreite">
+  <div id="grip"></div>
+<script>
+  const send = (m) => {
+    try {
+      if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(m);
+      if (window.chrome && window.chrome.webview) return window.chrome.webview.postMessage(m);
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ipc)
+        return window.webkit.messageHandlers.ipc.postMessage(m);
+    } catch (e) { console.error("IPC-Fehler", e); }
+  };
+  let dragging = false, startX = 0;
+  document.body.addEventListener("pointerdown", (e) => {
+    dragging = true; startX = e.screenX;
+    document.body.classList.add("drag");
+    try { document.body.setPointerCapture(e.pointerId); } catch (_) {}
+    send("rs:start");
+    e.preventDefault();
+  });
+  document.body.addEventListener("pointermove", (e) => {
+    if (dragging) send("rs:move:" + (e.screenX - startX));
+  });
+  const stop = () => { if (dragging) { dragging = false; document.body.classList.remove("drag"); send("rs:end"); } };
+  document.body.addEventListener("pointerup", stop);
+  document.body.addEventListener("pointercancel", stop);
+  document.body.addEventListener("dblclick", () => send("sp0"));
+</script>
+</body>
+</html>

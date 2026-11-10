@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Einstellungen</title>
+<style>
+  :root { --bg:#0d0d12; --panel:#16161d; --panel2:#1e1e28; --accent:#19d3ff; --text:#e8e8f0; --dim:#8a8a9a; }
+  * { box-sizing:border-box; margin:0; padding:0; font-family:"Segoe UI",system-ui,sans-serif; }
+  body { background:var(--bg); color:var(--text); min-height:100vh; padding:28px 0 60px; }
+  .wrap { max-width:820px; margin:0 auto; padding:0 24px; }
+  h1 { font-size:24px; font-weight:700; background:linear-gradient(90deg,var(--accent),#7a5cff); -webkit-background-clip:text; background-clip:text; color:transparent; margin-bottom:6px; }
+  .sub { color:var(--dim); font-size:13px; line-height:1.5; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid #282834; border-radius:14px; padding:18px 20px; margin-bottom:16px; }
+  h2 { font-size:15px; color:var(--accent); margin-bottom:6px; }
+  .desc { color:var(--dim); font-size:12px; line-height:1.5; margin-bottom:14px; }
+  .row { display:flex; align-items:center; gap:14px; padding:10px 0; border-top:1px solid #262630; }
+  .row:first-of-type { border-top:0; }
+  .label { flex:1; min-width:0; font-size:13px; }
+  .label small { display:block; color:var(--dim); font-size:11px; margin-top:3px; }
+  input[type=color] { width:46px; height:34px; padding:3px; border:1px solid #41414d; border-radius:9px; background:var(--panel2); cursor:pointer; }
+  select { min-width:200px; height:36px; color:var(--text); background:var(--panel2); border:1px solid #41414d; border-radius:9px; padding:0 10px; outline:none; }
+  input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); }
+  #saved { min-height:18px; color:#76dba2; font-size:12px; text-align:right; margin-top:8px; }
+  .tip { color:var(--dim); font-size:11px; line-height:1.5; margin-top:12px; }
+  @media(max-width:560px) { .row { gap:8px; } select { min-width:0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Einstellungen</h1>
+  <div class="sub">Suchmaschine, automatische Übersetzung und Farben der Browseroberfläche. Änderungen werden automatisch gespeichert.</div>
+
+  <section class="card">
+    <h2>Suche</h2>
+    <div class="desc">Legt fest, welcher Anbieter für Suchbegriffe in der Adressleiste und beim Öffnen eines neuen Tabs verwendet wird.</div>
+    <div class="row"><div class="label">Standardsuchmaschine</div>
+      <select id="search_engine"><option value="google">Google</option><option value="duckduckgo">DuckDuckGo</option><option value="ecosia">Ecosia</option><option value="bing">Bing</option></select>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Übersetzung</h2>
+    <div class="row"><div class="label">Automatisch übersetzen<small>Bei Seitenaufrufen Websites über Google Übersetzer in die ausgewählte Sprache öffnen.</small></div><input id="auto_translate" type="checkbox"></div>
+    <div class="row"><div class="label">Zielsprache</div>
+      <select id="translate_lang"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="es">Spanisch</option><option value="fr">Französisch</option><option value="it">Italienisch</option><option value="ja">Japanisch</option><option value="nl">Niederländisch</option><option value="pl">Polnisch</option><option value="pt">Portugiesisch</option><option value="ru">Russisch</option><option value="zh-CN">Chinesisch (vereinfacht)</option></select>
+    </div>
+    <div class="tip">Der Übersetzen-Knopf in der oberen Werkzeugleiste übersetzt die aktuelle Seite. Für automatische Übersetzung wird eine Internetverbindung zu Google Übersetzer benötigt.</div>
+  </section>
+
+  <section class="card">
+    <h2>Farben der Browseroberfläche</h2>
+    <div class="desc">Wähle ein Feld, um den Farbwähler zu öffnen. Die gewählten Farben werden sofort auf Tabs, Leisten und Seitenleiste angewendet.</div>
+    <div class="row"><div class="label">Hintergrund der Tab-Leiste</div><input type="color" data-color="background" aria-label="Hintergrund der Tab-Leiste"></div>
+    <div class="row"><div class="label">Tabs</div><input type="color" data-color="tabs" aria-label="Tabs"></div>
+    <div class="row"><div class="label">Werkzeugleiste</div><input type="color" data-color="toolbar" aria-label="Werkzeugleiste"></div>
+    <div class="row"><div class="label">Lesezeichenleiste</div><input type="color" data-color="bookmarks" aria-label="Lesezeichenleiste"></div>
+    <div class="row"><div class="label">Seitenleiste</div><input type="color" data-color="sidebar" aria-label="Seitenleiste"></div>
+    <div class="row"><div class="label">Akzentfarbe<small>Rahmen und Hervorhebungen</small></div><input type="color" data-color="accent" aria-label="Akzentfarbe"></div>
+    <div class="row"><div class="label">Text</div><input type="color" data-color="text" aria-label="Textfarbe"></div>
+    <div id="saved" aria-live="polite"></div>
+  </section>
+</div>
+<script>
+  const send = o => {
+    try {
+      if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(JSON.stringify(o));
+      if (window.chrome && window.chrome.webview) return window.chrome.webview.postMessage(JSON.stringify(o));
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ipc) return window.webkit.messageHandlers.ipc.postMessage(JSON.stringify(o));
+    } catch (e) { console.error(e); }
+  };
+  let data = __DATA__;
+  let timer, colorTimer;
+  const $ = id => document.getElementById(id);
+  function applySettings(payload) {
+    const s = payload.settings || payload;
+    if (!s) return;
+    $('search_engine').value = s.search_engine || 'duckduckgo';
+    $('auto_translate').checked = !!s.auto_translate;
+    $('translate_lang').value = s.translate_lang || 'de';
+    const colors = s.colors || {};
+    document.querySelectorAll('[data-color]').forEach(input => input.value = colors[input.dataset.color] || '#0d0d12');
+    const root = document.documentElement.style;
+    root.setProperty('--bg', colors.background || '#0d0d12');
+    root.setProperty('--panel', colors.tabs || '#16161d');
+    root.setProperty('--accent', colors.accent || '#19d3ff');
+    root.setProperty('--text', colors.text || '#e8e8f0');
+  }
+  function save() {
+    const colors = {};
+    document.querySelectorAll('[data-color]').forEach(input => colors[input.dataset.color] = input.value);
+    const settings = { search_engine:$('search_engine').value, auto_translate:$('auto_translate').checked, translate_lang:$('translate_lang').value, colors };
+    send({t:'settings_save', ...settings});
+    $('saved').textContent = 'Gespeichert';
+    clearTimeout(timer); timer = setTimeout(() => $('saved').textContent = '', 1200);
+  }
+  window.setData = d => { data = d; applySettings(d); };
+  $('search_engine').addEventListener('change', save);
+  $('auto_translate').addEventListener('change', save);
+  $('translate_lang').addEventListener('change', save);
+  document.querySelectorAll('[data-color]').forEach(input => {
+    input.addEventListener('input', () => { clearTimeout(colorTimer); colorTimer = setTimeout(save, 180); });
+    input.addEventListener('change', save);
+  });
+  applySettings(data);
+</script>
+</body>
+</html>

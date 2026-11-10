@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verlauf</title>
+<style>
+  :root { --bg:#0d0d12; --panel:#16161d; --panel2:#1e1e28; --accent:#19d3ff; --text:#e8e8f0; --dim:#8a8a9a; }
+  * { box-sizing:border-box; margin:0; padding:0; font-family:"Segoe UI",system-ui,sans-serif; }
+  body { background:var(--bg); color:var(--text); min-height:100vh; padding:28px 0 60px; }
+  .wrap { max-width:860px; margin:0 auto; padding:0 24px; }
+  header { display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+  h1 { font-size:24px; font-weight:700; background:linear-gradient(90deg,#19d3ff,#7a5cff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:var(--dim); font-size:13px; margin-bottom:18px; }
+  .tools { display:flex; gap:10px; margin-bottom:22px; }
+  input { flex:1; height:38px; border:1px solid #2a2a38; border-radius:19px; background:var(--panel); color:var(--text); padding:0 18px; font-size:14px; outline:none; }
+  input:focus { border-color:var(--accent); box-shadow:0 0 10px -2px var(--accent); }
+  button.danger { height:38px; padding:0 18px; border:1px solid #3a2330; border-radius:19px; background:transparent; color:#ff6b86; font-size:13px; cursor:pointer; }
+  button.danger:hover { background:#ff4d6d; color:#fff; border-color:#ff4d6d; }
+  h2 { font-size:13px; font-weight:600; color:var(--accent); margin:22px 0 8px; text-transform:none; letter-spacing:.3px; }
+  .row { display:flex; align-items:center; gap:14px; padding:9px 12px; border-radius:10px; cursor:pointer; }
+  .row:hover { background:var(--panel); }
+  .time { width:44px; color:var(--dim); font-size:12px; flex:none; }
+  .main { flex:1; min-width:0; }
+  .t { font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .u { font-size:12px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .x { width:26px; height:26px; border:none; border-radius:50%; background:transparent; color:var(--dim); font-size:16px; cursor:pointer; visibility:hidden; }
+  .row:hover .x { visibility:visible; }
+  .x:hover { background:var(--accent); color:#0d0d12; }
+  .empty { color:var(--dim); text-align:center; padding:60px 0; font-size:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Verlauf</h1></header>
+  <div class="sub">Private Tabs erscheinen hier nicht. Klick auf einen Eintrag öffnet ihn in einem neuen Tab.</div>
+  <div class="tools">
+    <input id="q" placeholder="Im Verlauf suchen …" spellcheck="false">
+    <button class="danger" id="clear">Verlauf löschen</button>
+  </div>
+  <div id="list"></div>
+</div>
+<script>
+  const send = (o) => {
+    const m = JSON.stringify(o);
+    try {
+      if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(m);
+      if (window.chrome && window.chrome.webview) return window.chrome.webview.postMessage(m);
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ipc)
+        return window.webkit.messageHandlers.ipc.postMessage(m);
+    } catch (e) { console.error(e); }
+  };
+  let data = __DATA__;
+  const listEl = document.getElementById("list");
+  const qEl = document.getElementById("q");
+
+  function dayLabel(ts) {
+    const d = new Date(ts * 1000), today = new Date();
+    const y = new Date(); y.setDate(today.getDate() - 1);
+    const same = (a, b) => a.toDateString() === b.toDateString();
+    if (same(d, today)) return "Heute";
+    if (same(d, y)) return "Gestern";
+    return d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  }
+
+  function render() {
+    const q = qEl.value.trim().toLowerCase();
+    const items = (data.history || []).filter(e => !q || (e.title || "").toLowerCase().includes(q) || e.url.toLowerCase().includes(q));
+    listEl.innerHTML = "";
+    if (!items.length) {
+      const e = document.createElement("div"); e.className = "empty";
+      e.textContent = q ? "Keine Treffer." : "Noch keine besuchten Seiten.";
+      listEl.appendChild(e); return;
+    }
+    let last = "";
+    for (const it of items) {
+      const label = dayLabel(it.ts);
+      if (label !== last) { const h = document.createElement("h2"); h.textContent = label; listEl.appendChild(h); last = label; }
+      const row = document.createElement("div"); row.className = "row";
+      const time = document.createElement("div"); time.className = "time";
+      time.textContent = new Date(it.ts * 1000).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      const main = document.createElement("div"); main.className = "main";
+      const t = document.createElement("div"); t.className = "t"; t.textContent = it.title || it.url;
+      const u = document.createElement("div"); u.className = "u"; u.textContent = it.url;
+      main.append(t, u);
+      const x = document.createElement("button"); x.className = "x"; x.textContent = "×"; x.title = "Aus dem Verlauf entfernen";
+      x.onclick = (ev) => { ev.stopPropagation(); send({ t: "hist_del", ts: it.ts, url: it.url }); };
+      row.onclick = () => send({ t: "open", url: it.url });
+      row.append(time, main, x);
+      listEl.appendChild(row);
+    }
+  }
+
+  window.setData = (d) => { data = d; render(); };
+  qEl.addEventListener("input", render);
+  document.getElementById("clear").onclick = () => send({ t: "hist_clear" });
+  render();
+</script>
+</body>
+</html>

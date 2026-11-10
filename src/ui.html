@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --bg:#0d0d12; --panel:#16161d; --panel2:#1e1e28; --toolbar:#1e1e28; --bookmark:#0d0d12; --tab:#16161d; --accent:#19d3ff; --priv:#a45cff; --text:#e8e8f0; --dim:#8a8a9a; }
+  * { box-sizing:border-box; margin:0; padding:0; user-select:none; font-family:"Segoe UI",system-ui,sans-serif; }
+  body { background:var(--bg); color:var(--text); height:116px; overflow:hidden; }
+  svg { display:block; }
+
+  /* --- Tab-Leiste --- */
+  #tabs { height:40px; display:flex; align-items:flex-end; gap:4px; padding:6px 8px 0 8px; border-bottom:1px solid #000; background:var(--bg); }
+  .logo { font-weight:900; font-size:15px; letter-spacing:3px; padding:0 12px 8px 6px; font-style:italic;
+          background:linear-gradient(90deg,#19d3ff,#7a5cff); -webkit-background-clip:text; background-clip:text; color:transparent;
+          filter:drop-shadow(0 0 6px rgba(25,211,255,.55)); cursor:default; }
+  .tab { display:flex; align-items:center; gap:8px; max-width:200px; min-width:90px; flex:0 1 200px; height:32px; padding:0 8px 0 12px;
+         background:var(--tab); border-radius:8px 8px 0 0; color:var(--dim); font-size:12px; cursor:pointer; border:1px solid transparent; border-bottom:none; }
+  .tab:hover { background:var(--panel2); }
+  .tab.active { background:var(--toolbar); color:var(--text); border-color:var(--accent); box-shadow:0 -2px 12px -4px var(--accent); }
+  .tab.private { background:#1a1426; }
+  .tab.private.active { border-color:var(--priv); box-shadow:0 -2px 12px -4px var(--priv); }
+  .tab .badge { font-size:9px; font-weight:700; letter-spacing:.5px; color:var(--priv); border:1px solid var(--priv); border-radius:4px; padding:0 3px; }
+  .tab .title { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tab .x { width:18px; height:18px; line-height:18px; text-align:center; border-radius:50%; }
+  .tab .x:hover { background:var(--accent); color:#0d0d12; }
+  .tab.private .x:hover { background:var(--priv); color:#fff; }
+  .tabbtn { width:30px; height:30px; margin-bottom:2px; border:none; border-radius:8px; background:var(--panel); color:var(--accent);
+            font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .tabbtn:hover { background:var(--accent); color:#0d0d12; }
+  #privtab { color:var(--priv); }
+  #privtab:hover { background:var(--priv); color:#fff; }
+
+  /* --- Werkzeugleiste --- */
+  #bar { height:44px; display:flex; align-items:center; gap:6px; padding:0 8px; background:var(--toolbar); }
+  .btn { width:32px; height:32px; border:none; border-radius:8px; background:transparent; color:var(--text); font-size:16px; cursor:pointer;
+         display:flex; align-items:center; justify-content:center; flex:none; }
+  .btn:hover { background:#2a2a38; color:var(--accent); }
+  .btn:disabled { opacity:.35; cursor:default; }
+  .btn:disabled:hover { background:transparent; color:var(--text); }
+  .btn.on { color:#ffd24a; }
+  #url { flex:1; height:32px; border:1px solid #2a2a38; border-radius:16px; background:var(--bg); color:var(--text); padding:0 16px; font-size:13px; outline:none; user-select:text; min-width:0; }
+  #url:focus { border-color:var(--accent); box-shadow:0 0 10px -2px var(--accent); }
+  #url:disabled { opacity:.6; }
+
+  /* --- Lesezeichenleiste --- */
+  #bm { height:32px; display:flex; align-items:center; gap:6px; padding:0 8px; background:var(--bookmark); border-top:1px solid #000;
+        overflow:hidden; white-space:nowrap; }
+  .chip { display:flex; align-items:center; gap:6px; height:24px; padding:0 10px; max-width:190px; border-radius:12px; background:var(--panel);
+          color:var(--text); font-size:12px; cursor:pointer; flex:none; }
+  .chip:hover { background:var(--panel2); color:var(--accent); }
+  .chip .t { overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+  .chip .rm { display:none; width:16px; height:16px; line-height:16px; text-align:center; border-radius:50%; font-size:12px; color:var(--dim); }
+  .chip:hover .rm { display:block; }
+  .chip .rm:hover { background:var(--accent); color:#0d0d12; }
+  .chip.folder { color:#ffd24a; }
+  .chip.folder:hover { color:#fff3b8; }
+  .chip.back { color:var(--dim); }
+  .lbl { color:var(--dim); font-size:12px; flex:none; }
+  .hint { color:var(--dim); font-size:12px; }
+  #bm input, #bm select { height:24px; border:1px solid #2a2a38; border-radius:12px; background:var(--panel); color:var(--text);
+                          font-size:12px; padding:0 10px; outline:none; user-select:text; }
+  #bm input { width:240px; }
+  #bm input:focus, #bm select:focus { border-color:var(--accent); }
+  #bm select { appearance:none; -webkit-appearance:none; background-color:var(--panel); color:var(--text); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a8a9a' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:26px !important; }
+  #bm select option { background:var(--panel); }
+  .pill { height:24px; padding:0 12px; border:none; border-radius:12px; font-size:12px; cursor:pointer; flex:none; }
+  .pill.ok { background:var(--accent); color:#0d0d12; font-weight:600; }
+  .pill.no { background:var(--panel); color:var(--dim); }
+  .pill.no:hover { color:var(--text); }
+</style>
+</head>
+<body>
+  <div id="tabs"></div>
+  <div id="bar">
+    <button class="btn" id="back" title="Zurück">◀</button>
+    <button class="btn" id="fwd" title="Vor">▶</button>
+    <button class="btn" id="reload" title="Neu laden">⟳</button>
+    <button class="btn" id="home" title="Startseite">⌂</button>
+    <input id="url" placeholder="Suchen oder Adresse eingeben" spellcheck="false">
+    <button class="btn" id="star" title="Lesezeichen setzen / entfernen"></button>
+    <button class="btn" id="hist" title="Verlauf"></button>
+    <button class="btn" id="bmgr" title="Lesezeichen verwalten"></button>
+    <button class="btn" id="extbtn" title="Erweiterungen"></button>
+    <button class="btn" id="translate" title="Aktuelle Seite übersetzen" aria-label="Aktuelle Seite übersetzen">文</button>
+    <button class="btn" id="settings" title="Einstellungen" aria-label="Einstellungen"></button>
+  </div>
+  <div id="bm"></div>
+<script>
+  const send = (m) => {
+    try {
+      if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(m);
+      if (window.chrome && window.chrome.webview) return window.chrome.webview.postMessage(m);
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ipc)
+        return window.webkit.messageHandlers.ipc.postMessage(m);
+      console.error("Keine IPC-Schnittstelle gefunden");
+    } catch (e) { console.error("IPC-Fehler", e); }
+  };
+  const hasIpc = !!((window.ipc && window.ipc.postMessage) || (window.chrome && window.chrome.webview) ||
+    (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ipc));
+
+  // ---- Icons ----
+  const S = (inner, fill) => '<svg viewBox="0 0 24 24" width="18" height="18" fill="' + (fill || "none") + '" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">' + inner + '</svg>';
+  const STAR_PATH = '<path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 17l-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/>';
+  const ICON = {
+    star: S(STAR_PATH),
+    starOn: S(STAR_PATH, "currentColor"),
+    hist: S('<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.2 2"/>'),
+    folder: S('<path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/>'),
+    puzzle: S('<path d="M10 4.5a2 2 0 1 1 4 0V6h4a1 1 0 0 1 1 1v4h-1.5a2 2 0 1 0 0 4H19v3a1 1 0 0 1-1 1h-4v-1.5a2 2 0 1 0-4 0V19H6a1 1 0 0 1-1-1v-4h1.5a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/>'),
+    mask: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 11l2.5-6h11L20 11z"/><path d="M2.5 11h19"/><circle cx="8" cy="16" r="2.6"/><circle cx="16" cy="16" r="2.6"/></svg>',
+    smallFolder: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></svg>'
+  };
+
+  const state = { tabs: [], active: 0, bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null };
+  const tabsEl = document.getElementById("tabs");
+  const urlEl = document.getElementById("url");
+  const starEl = document.getElementById("star");
+  const translateEl = document.getElementById("translate");
+  const bmEl = document.getElementById("bm");
+  document.getElementById("hist").innerHTML = ICON.hist;
+  document.getElementById("bmgr").innerHTML = ICON.folder;
+  document.getElementById("extbtn").innerHTML = ICON.puzzle;
+  document.getElementById("settings").innerHTML = S('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.6v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.3v-2.6h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2H15v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v2.6h-.2a1.7 1.7 0 0 0-1.5 1z');
+
+  function applyTheme(settings) {
+    const c = settings && settings.colors;
+    if (!c) return;
+    const root = document.documentElement.style;
+    root.setProperty('--bg', c.background || '#0d0d12');
+    root.setProperty('--tab', c.tabs || '#16161d');
+    root.setProperty('--panel', c.tabs || '#16161d');
+    root.setProperty('--toolbar', c.toolbar || '#1e1e28');
+    root.setProperty('--panel2', c.toolbar || '#1e1e28');
+    root.setProperty('--bookmark', c.bookmarks || '#0d0d12');
+    root.setProperty('--accent', c.accent || '#19d3ff');
+    root.setProperty('--text', c.text || '#e8e8f0');
+  }
+
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const activeTab = () => state.tabs.find(t => t.id === state.active);
+  const isHttp = (u) => /^https?:\/\//i.test(u || "");
+
+  // ---- Tabs ----
+  function renderTabs() {
+    tabsEl.innerHTML = "";
+    const logo = el("div", "logo", "RAK");
+    logo.title = "RAK – Render · Accelerated · Kinetic";
+    tabsEl.appendChild(logo);
+    for (const t of state.tabs) {
+      const tab = el("div", "tab" + (t.id === state.active ? " active" : "") + (t.private ? " private" : ""));
+      if (t.private) tab.appendChild(el("span", "badge", "PRIVAT"));
+      tab.appendChild(el("span", "title", t.title || t.url || "Neuer Tab"));
+      const x = el("span", "x", "×");
+      x.onclick = (e) => { e.stopPropagation(); send("close:" + t.id); };
+      tab.onclick = () => send("switch:" + t.id);
+      tab.appendChild(x);
+      tabsEl.appendChild(tab);
+    }
+    const nt = el("button", "tabbtn", "+"); nt.id = "newtab"; nt.title = "Neuer Tab"; nt.onclick = () => send("new");
+    const pt = el("button", "tabbtn"); pt.id = "privtab"; pt.title = "Neuer privater Tab (kein Verlauf)"; pt.innerHTML = ICON.mask; pt.onclick = () => send("newp");
+    tabsEl.append(nt, pt);
+  }
+
+  function updateStar() {
+    const t = activeTab();
+    const ok = !!t && isHttp(t.url);
+    const marked = ok && state.bm.bookmarks.some(b => b.url === t.url);
+    starEl.innerHTML = marked ? ICON.starOn : ICON.star;
+    starEl.disabled = !ok;
+    starEl.classList.toggle("on", marked);
+  }
+
+  // ---- Lesezeichenleiste ----
+  function chip(b) {
+    const c = el("div", "chip");
+    c.title = b.url;
+    c.appendChild(el("span", "t", b.title));
+    const rm = el("span", "rm", "×"); rm.title = "Lesezeichen entfernen";
+    rm.onclick = (e) => { e.stopPropagation(); send("bmdel:" + b.id); };
+    c.appendChild(rm);
+    c.onclick = () => send("bmopen:" + b.url);
+    return c;
+  }
+
+  function renderBm() {
+    bmEl.innerHTML = "";
+    const { bookmarks, folders } = state.bm;
+
+    if (state.adding) {
+      const a = state.adding;
+      const name = el("input"); name.id = "bmName"; name.value = a.title; name.placeholder = "Name";
+      const sel = el("select"); sel.id = "bmFolder";
+      const o0 = el("option", null, "Lesezeichenleiste"); o0.value = ""; sel.appendChild(o0);
+      folders.forEach(f => { const o = el("option", null, "📁 " + f.name); o.value = String(f.id); sel.appendChild(o); });
+      if (state.folder !== null) sel.value = String(state.folder);
+      const save = () => {
+        const v = sel.value;
+        send("bmadd:" + JSON.stringify({ title: name.value, url: a.url, folder: v === "" ? null : Number(v) }));
+        state.adding = null; renderBm();
+      };
+      const cancel = () => { state.adding = null; renderBm(); };
+      const ok = el("button", "pill ok", "Speichern"); ok.onclick = save;
+      const no = el("button", "pill no", "Abbrechen"); no.onclick = cancel;
+      name.addEventListener("keydown", (e) => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); });
+      bmEl.append(el("span", "lbl", "★ Lesezeichen:"), name, el("span", "lbl", "in"), sel, ok, no);
+      return;
+    }
+
+    if (state.folder !== null) {
+      const f = folders.find(x => x.id === state.folder);
+      if (!f) { state.folder = null; return renderBm(); }
+      const back = el("div", "chip back", "◀ Leiste");
+      back.onclick = () => { state.folder = null; renderBm(); };
+      bmEl.append(back, el("span", "lbl", f.name + ":"));
+      const inF = bookmarks.filter(b => b.folder === f.id);
+      inF.forEach(b => bmEl.appendChild(chip(b)));
+      if (!inF.length) bmEl.appendChild(el("span", "hint", "Dieser Ordner ist leer – Lesezeichen lassen sich unter „Lesezeichen verwalten“ verschieben."));
+      return;
+    }
+
+    folders.forEach(f => {
+      const c = el("div", "chip folder");
+      c.innerHTML = ICON.smallFolder;
+      c.appendChild(el("span", "t", f.name));
+      c.onclick = () => { state.folder = f.id; renderBm(); };
+      bmEl.appendChild(c);
+    });
+    const root = bookmarks.filter(b => b.folder == null);
+    root.forEach(b => bmEl.appendChild(chip(b)));
+    if (!folders.length && !root.length) bmEl.appendChild(el("span", "hint", "Noch keine Lesezeichen – mit ★ die aktuelle Seite hinzufügen."));
+  }
+
+  // ---- Schnittstelle zu Rust ----
+  window.rak = {
+    setTabs(tabs, active) {
+      state.tabs = tabs; state.active = active;
+      renderTabs(); updateStar();
+      const t = activeTab();
+      translateEl.disabled = !t || !isHttp(t.url) || t.url.startsWith('https://translate.google.com/');
+      if (t && document.activeElement !== urlEl) urlEl.value = t.url || "";
+      if (state.adding && (!t || t.url !== state.adding.url)) { state.adding = null; renderBm(); }
+    },
+    setBookmarks(d) {
+      const key = JSON.stringify(d);
+      if (key === state.bmKey) return;          // unverändert: nichts neu zeichnen (Eingabefeld bleibt erhalten)
+      state.bmKey = key; state.bm = d;
+      renderBm(); updateStar();
+    },
+    setSettings(settings) {
+      state.settings = settings;
+      applyTheme(settings);
+    }
+  };
+
+  // ---- Bedienung ----
+  document.getElementById("back").onclick = () => send("back");
+  document.getElementById("fwd").onclick = () => send("fwd");
+  document.getElementById("reload").onclick = () => send("reload");
+  document.getElementById("home").onclick = () => send("home");
+  document.getElementById("hist").onclick = () => send("hist");
+  document.getElementById("bmgr").onclick = () => send("bmgr");
+  document.getElementById("extbtn").onclick = () => send("ext");
+  document.getElementById("settings").onclick = () => send("settings");
+  translateEl.onclick = () => send("translate");
+  starEl.onclick = () => {
+    const t = activeTab();
+    if (!t || !isHttp(t.url)) return;
+    if (state.bm.bookmarks.some(b => b.url === t.url)) { send("bmdelurl:" + t.url); return; }
+    state.adding = { title: t.title || t.url, url: t.url };
+    renderBm();
+    const n = document.getElementById("bmName"); if (n) { n.focus(); n.select(); }
+  };
+
+  urlEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { send("nav:" + urlEl.value); urlEl.blur(); }
+  });
+  // Beim ersten Klick in die Leiste alles markieren (und die Markierung beim Loslassen der Maus behalten)
+  let justFocused = false;
+  urlEl.addEventListener("focus", () => { justFocused = true; urlEl.select(); });
+  urlEl.addEventListener("mouseup", (e) => { if (justFocused) { e.preventDefault(); justFocused = false; } });
+  urlEl.addEventListener("blur", () => { justFocused = false; });
+
+  if (!hasIpc) {
+    urlEl.placeholder = "⚠ Nicht in RAK geöffnet – bitte mit „cargo run --release“ starten, nicht ui.html im Browser öffnen";
+    urlEl.disabled = true;
+  }
+  renderTabs(); renderBm(); updateStar();
+  send("ready");
+</script>
+</body>
+</html>
