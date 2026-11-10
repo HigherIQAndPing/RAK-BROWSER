@@ -204,6 +204,72 @@ pub fn remove(id: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn copy_dir(src: &Path, dst: &Path) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if from.is_dir() { copy_dir(&from, &to)?; }
+        else if from.is_file() { fs::copy(&from, &to).map_err(|e| e.to_string())?; }
+    }
+    Ok(())
+}
+
+fn profile_roots(browser: &str) -> Vec<PathBuf> {
+    let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    let roaming = std::env::var_os("APPDATA").map(PathBuf::from);
+    match browser {
+        "chrome" => local.map(|p| vec![p.join("Google/Chrome/User Data")]).unwrap_or_default(),
+        "brave" => local.map(|p| vec![p.join("BraveSoftware/Brave-Browser/User Data")]).unwrap_or_default(),
+        "edge" => local.map(|p| vec![p.join("Microsoft/Edge/User Data")]).unwrap_or_default(),
+        "opera" => roaming.map(|p| vec![p.join("Opera Software/Opera Stable")]).unwrap_or_default(),
+        "firefox" => roaming.map(|p| vec![p.join("Mozilla/Firefox/Profiles")]).unwrap_or_default(),
+        _ => Vec::new(),
+    }
+}
+
+fn find_extension_dirs(dir: &Path, out: &mut Vec<PathBuf>, budget: &mut usize) {
+    if *budget == 0 { return; }
+    *budget -= 1;
+    let Ok(entries) = fs::read_dir(dir) else { return; };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            if p.join("manifest.json").is_file() { out.push(p); }
+            else { find_extension_dirs(&p, out, budget); }
+        }
+    }
+}
+
+/// Importiert Chromium-Erweiterungen aus dem lokalen Browserprofil.
+/// Firefox-Erweiterungen werden erkannt, aber wegen inkompatibler XPI-IDs nicht
+/// blind als WebView2-Erweiterungen installiert.
+pub fn import_browser(browser: &str) -> Result<Value, String> {
+    if !matches!(browser, "chrome" | "brave" | "edge" | "opera" | "firefox") {
+        return Err("Unbekannter Browser".into());
+    }
+    let mut candidates = Vec::new();
+    for root in profile_roots(browser) {
+        if root.exists() { find_extension_dirs(&root, &mut candidates, &mut 40_000); }
+    }
+    let mut imported = Vec::new();
+    let mut skipped = 0usize;
+    for source in candidates {
+        let id = source.ancestors().find_map(|p| p.file_name().and_then(|n| {
+            let s = n.to_string_lossy(); valid_id(&s).then_some(s.to_string())
+        }));
+        let Some(id) = id else { skipped += 1; continue; };
+        let target = ext_dir().join(&id);
+        let _ = fs::remove_dir_all(&target);
+        if copy_dir(&source, &target).is_ok() {
+            if let Some(info) = read_info(&target, &id) {
+                imported.push(json!({"id":info.id,"name":info.name,"version":info.version}));
+            }
+        }
+    }
+    Ok(json!({"ok":true,"browser":browser,"imported":imported,"skipped":skipped}))
+}
+
 #[cfg(debug_assertions)]
 fn crx_url(id: &str) -> String {
     // Nur für Tests: eigene Adresse mit {id} als Platzhalter

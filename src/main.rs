@@ -276,14 +276,18 @@ impl State {
     /// daneben (optional) das App-Panel mit Ziehgriff, rechts davon die Seiten-Tabs.
     fn layout(&self, window: &Window) {
         let (w, h) = window_size(window);
-        let body_h = h - UI_HEIGHT;
+        let fullscreen = window.fullscreen().is_some();
+        let chrome_y = if fullscreen { 0.0 } else { TITLEBAR_HEIGHT };
+        let content_y = chrome_y + CHROME_HEIGHT;
+        let body_h = h - content_y;
         place(&self.host, &self.titlebar, 0.0, 0.0, w, TITLEBAR_HEIGHT);
-        place(&self.host, &self.ui, 0.0, TITLEBAR_HEIGHT, w, CHROME_HEIGHT);
-        place(&self.host, &self.side, 0.0, UI_HEIGHT, SIDEBAR_W, body_h);
+        let _ = self.titlebar.set_visible(!fullscreen);
+        place(&self.host, &self.ui, 0.0, chrome_y, w, CHROME_HEIGHT);
+        place(&self.host, &self.side, 0.0, content_y, SIDEBAR_W, body_h);
         let pw = clamp_width(self.panel_w, w);
         for (id, view) in &self.panels {
             let shown = self.open.as_deref() == Some(id.as_str());
-            place(&self.host, view, SIDEBAR_W, UI_HEIGHT, pw, body_h);
+            place(&self.host, view, SIDEBAR_W, content_y, pw, body_h);
             let _ = view.set_visible(shown);
         }
         if let Some(split) = &self.split {
@@ -291,7 +295,7 @@ impl State {
                 &self.host,
                 split,
                 SIDEBAR_W + pw,
-                UI_HEIGHT,
+                content_y,
                 SPLIT_W,
                 body_h,
             );
@@ -299,7 +303,7 @@ impl State {
         }
         let x = self.content_x(w);
         for t in &self.tabs {
-            place(&self.host, &t.view, x, UI_HEIGHT, w - x, body_h);
+            place(&self.host, &t.view, x, content_y, w - x, body_h);
         }
     }
 
@@ -1144,6 +1148,18 @@ impl State {
                 }
                 return false;
             }
+            Some("ext_import") => {
+                let browser = v["browser"].as_str().unwrap_or("").to_string();
+                let p = self.proxy.clone();
+                std::thread::spawn(move || {
+                    let j = match ext::import_browser(&browser) {
+                        Ok(result) => result,
+                        Err(error) => json!({"ok":false,"error":error}),
+                    };
+                    let _ = p.send_event(UserEvent::Ext(j.to_string()));
+                });
+                return false;
+            }
             Some("ext_remove") => {
                 if let Some(eid) = v["id"].as_str() {
                     if let Err(e) = ext::remove(eid) {
@@ -1173,6 +1189,12 @@ impl State {
             let _ = t
                 .view
                 .evaluate_script(&format!("window.extResult && window.extResult({});", json));
+        }
+        for t in self.tabs.iter().filter(|t| t.kind == Kind::Settings) {
+            let _ = t.view.evaluate_script(&format!(
+                "window.importResult && window.importResult({});",
+                json
+            ));
         }
         self.push_internal();
     }

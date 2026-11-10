@@ -22,6 +22,10 @@
   input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); }
   #saved { min-height:18px; color:#76dba2; font-size:12px; text-align:right; margin-top:8px; }
   .tip { color:var(--dim); font-size:11px; line-height:1.5; margin-top:12px; }
+  .import-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .import-row select { flex:1; min-width:180px; }
+  .import-row button { height:36px; border:0; border-radius:9px; padding:0 14px; color:#081216; background:var(--accent); font-weight:700; cursor:pointer; }
+  #import_status { min-height:18px; margin-top:10px; color:var(--dim); font-size:12px; }
   @media(max-width:560px) { .row { gap:8px; } select { min-width:0; } }
 </style>
 </head>
@@ -58,6 +62,13 @@
     <div class="row"><div class="label">Akzentfarbe<small>Rahmen und Hervorhebungen</small></div><input type="color" data-color="accent" aria-label="Akzentfarbe"></div>
     <div class="row"><div class="label">Text</div><input type="color" data-color="text" aria-label="Textfarbe"></div>
     <div id="saved" aria-live="polite"></div>
+  </section>
+  <section class="card">
+    <h2>Erweiterungen importieren</h2>
+    <div class="desc">Übernimmt kompatible installierte Chromium-Erweiterungen aus einem Browserprofil. RAK muss danach neu gestartet werden.</div>
+    <div class="import-row"><select id="import_browser" aria-label="Browser auswählen"><option value="chrome">Google Chrome</option><option value="edge">Microsoft Edge</option><option value="brave">Brave</option><option value="opera">Opera GX / Opera</option><option value="firefox">Firefox (nur kompatible WebExtensions)</option></select><button id="import_btn" type="button">Importieren</button></div>
+    <div id="import_status" aria-live="polite"></div>
+    <div class="tip">Firefox-Erweiterungen verwenden teilweise ein anderes Format und können deshalb übersprungen werden. Passende Erweiterungen werden aus dem lokalen Profil kopiert; es werden keine Kontodaten importiert.</div>
   </section>
 </div>
 <script>
@@ -97,6 +108,17 @@
   $('search_engine').addEventListener('change', save);
   $('auto_translate').addEventListener('change', save);
   $('translate_lang').addEventListener('change', save);
+  $('import_btn').addEventListener('click', () => {
+    $('import_btn').disabled = true;
+    $('import_status').textContent = 'Profil wird durchsucht …';
+    send({t:'ext_import', browser:$('import_browser').value});
+  });
+  window.importResult = r => {
+    $('import_btn').disabled = false;
+    if (!r.ok) { $('import_status').textContent = r.error || 'Import fehlgeschlagen.'; return; }
+    const n = (r.imported || []).length;
+    $('import_status').textContent = n + ' Erweiterung' + (n === 1 ? '' : 'en') + ' importiert' + (r.skipped ? ' · ' + r.skipped + ' übersprungen' : '') + '. Bitte RAK neu starten.';
+  };
   document.querySelectorAll('[data-color]').forEach(input => {
     input.addEventListener('input', () => { clearTimeout(colorTimer); colorTimer = setTimeout(save, 180); });
     input.addEventListener('change', save);

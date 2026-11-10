@@ -102,6 +102,8 @@ schaltet den Browser in den Vollbildmodus und wieder zurueck.
 Die Befehle werden zusaetzlich in jede WebView injiziert, damit WebView2 die
 Tastendruecke nicht verschluckt; externe Webseiten erhalten dabei keine freie
 Browser-IPC-Schnittstelle, sondern nur diese vier fest erlaubten Befehle.
+F11 ist echter Vollbildmodus: Die obere RAK-Fensterleiste wird ausgeblendet
+und die Browseroberflaeche wird bis an den oberen Bildschirmrand verschoben.
 
 WEITERE FUNKTIONEN
 ------------------
@@ -131,6 +133,10 @@ Erweiterungen   Puzzle-Symbol oder rak://erweiterungen. Erweiterungsadresse
                 nicht alle Chrome-Funktionen oder Erweiterungen funktionieren.
                 Private Tabs nutzen keine Erweiterungen.
                 Ablage: %APPDATA%\RAK\extensions. Der Download nutzt curl.exe.
+Import           In Einstellungen koennen kompatible Erweiterungen aus Chrome,
+                 Edge, Brave und Opera/Opera GX aus den lokalen Profilen
+                 importiert werden. Firefox wird durchsucht; inkompatible XPI-
+                 Erweiterungen werden uebersprungen. Danach RAK neu starten.
 Einstellungen   Zahnrad: Suchmaschine, automatische Uebersetzung und Farben
                 fuer Tab-Leiste, Tabs, Werkzeugleiste, Lesezeichenleiste,
                 Seitenleiste, Akzent und Text anpassen.
