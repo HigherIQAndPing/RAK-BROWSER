@@ -99,7 +99,57 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Compress-Archive -Path 'dist/RAK-windows-x64/*' -DestinationPath 'dist/RAK-windows-x64.zip' -Force
-          @'
+          $changes = @{
+            'v0.3.0' = @'
+          ### Diese Version
+          * Neue interne Startseite mit RAK-Logo, Suche und Schnellzugriffen.
+          * Der letzte geschlossene Tab beendet den Browser nicht mehr, sondern oeffnet die Startseite.
+          * Tab-Islands und Windows-portable Release eingefuehrt.
+          '@
+            'v0.3.1' = @'
+          ### Diese Version
+          * Native Titelleiste auf den kurzen Namen **RAK** reduziert.
+          * Startseite von der starken Verlauf-/Glasoptik auf ein ruhigeres Browser-Design umgestellt.
+          '@
+            'v0.4.0' = @'
+          ### Diese Version
+          * Eigene RAK-Titelleiste mit Ziehbereich sowie Minimieren, Maximieren und Schliessen.
+          * Responsive Startseite und dokumentierte Strg-T/Strg-W-Kuerzel.
+          '@
+            'v0.5.0' = @'
+          ### Diese Version
+          * F11-Vollbildmodus ergaenzt.
+          * Layout und Startseite reagieren beim Maximieren besser auf die Fenstergrösse.
+          * Tastatursteuerung wurde in Rust zentralisiert.
+          '@
+            'v0.6.0' = @'
+          ### Diese Version
+          * Shortcuts werden auch in fokussierten WebView2-Seiten abgefangen.
+          * Strg-T, Strg-W, Strg-Umschalt-N und F11 werden ueber eine begrenzte IPC-Whitelist an Rust geleitet.
+          '@
+            'v0.7.0' = @'
+          ### Diese Version
+          * Echter Vollbildmodus ohne obere Browserleisten.
+          * Vollflaechiger Homescreen mit responsivem Raster.
+          * Import kompatibler Erweiterungen aus Chrome, Edge, Brave, Opera und Firefox-Profilen.
+          '@
+            'v0.8.0' = @'
+          ### Diese Version
+          * F11 blendet jetzt auch Tab-, Adress-, Werkzeug- und Lesezeichenleiste aus.
+          * Homescreen-Karten skalieren proportional in Breite und Hoehe und bleiben scrollbar-frei.
+          '@
+            'v0.9.0' = @'
+          ### Diese Version
+          * RAK-Logo und Startseite im Homescreen zentriert und farbiger gestaltet.
+          * Platzhalter in der Suchleiste vergrössert und responsiv gemacht.
+          * Websuche-, YouTube-, GitHub- und Spotify-Icons mittig, groesser und skalierend.
+          '@
+          }
+          $featureNotes = $changes[$env:RELEASE_TAG]
+          if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }
+          @"
+          $featureNotes
+
           ## RAK fuer Windows x64 - ohne Rust starten
 
           1. Unter **Assets** die Datei **RAK-windows-x64.zip** herunterladen.
@@ -122,7 +172,7 @@ jobs:
 
           Dieses Release bleibt aufgrund der Sichtbarkeit des Repositorys privat.
           Fuer den Download ist eine GitHub-Anmeldung mit Zugriff auf das Repository erforderlich.
-          '@ | Set-Content -LiteralPath 'dist/release-notes.md' -Encoding utf8
+          "@ | Set-Content -LiteralPath 'dist/release-notes.md' -Encoding utf8
 
       - name: Release mit GITHUB_TOKEN erstellen und ZIP hochladen
         shell: pwsh

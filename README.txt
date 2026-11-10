@@ -51,6 +51,13 @@ Build-Artefakte werden 30 Tage aufbewahrt; Release-Assets sind fuer dauerhafte
 Versionen gedacht. Auch ein erfolgreicher manueller Lauf erstellt nur ein
 Artefakt, nicht automatisch ein Release.
 
+PATCHNOTES
+----------
+Jedes Windows-Release bekommt eigene deutsche Patchnotes. Die Release-Automatik
+ordnet die konkreten Aenderungen der jeweiligen Versionsnummer zu; wiederholte
+Standardtexte werden nicht erneut verwendet. Die Notes enthalten neben den
+Versionsaenderungen weiterhin die gemeinsame Anleitung zum Entpacken und Starten.
+
 TAB-INSELN
 ----------
 Zusammengehoerige Tabs lassen sich wie bei Opera in Inseln organisieren.
