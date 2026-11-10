@@ -144,6 +144,12 @@ jobs:
           * Platzhalter in der Suchleiste vergrössert und responsiv gemacht.
           * Websuche-, YouTube-, GitHub- und Spotify-Icons mittig, groesser und skalierend.
           '@
+            'v0.9.1' = @'
+          ### Diese Version
+          * TikTok als eigene Seitenleisten-App mit passendem Icon und direktem Panel-Link ergänzt.
+          * ChatGPT als KI-Assistent in die Seitenleiste aufgenommen.
+          * Beide Apps sind standardmäßig aktiv und können über „Seitenleiste anpassen“ ein- oder ausgeblendet werden.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

@@ -61,10 +61,12 @@ const GLOBAL_SHORTCUT_SCRIPT: &str = r#"
 "#;
 
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
-const APPS: [(&str, &str); 3] = [
+const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
     ("instagram", "https://www.instagram.com"),
     ("x", "https://x.com"),
+    ("tiktok", "https://www.tiktok.com"),
+    ("chatgpt", "https://chatgpt.com"),
 ];
 
 #[derive(Debug)]

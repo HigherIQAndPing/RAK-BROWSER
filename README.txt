@@ -136,9 +136,11 @@ Privat          Private Tabs werden nicht im lokalen Verlauf gespeichert und
                 auch aus privaten Tabs dauerhaft gespeichert werden.
                 Privatmodus macht dich NICHT anonym gegenueber Webseiten,
                 Netzwerkbetreibern oder angemeldeten Konten.
-Seitenleiste    Spotify, Instagram und X als Panel neben der Seite. Breite am
-                Griff oder ueber + / - anpassen; Doppelklick auf den Griff
-                setzt die Standardbreite. Stift-Symbol = Apps bearbeiten.
+Seitenleiste    Spotify, Instagram, X, TikTok und ChatGPT als Panel neben der
+                Seite. Breite am Griff oder ueber + / - anpassen; Doppelklick
+                auf den Griff setzt die Standardbreite. Stift-Symbol = Apps
+                bearbeiten. ChatGPT wird als Web-App geoeffnet; ein API-Schluessel
+                wird von RAK nicht benoetigt.
 Erweiterungen   Puzzle-Symbol oder rak://erweiterungen. Erweiterungsadresse
                 aus dem Chrome Web Store einfuegen und installieren.
                 Nach dem Download und Entpacken ist ein Neustart noetig.

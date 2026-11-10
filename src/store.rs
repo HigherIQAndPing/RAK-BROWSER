@@ -76,7 +76,7 @@ impl Default for ThemeColors {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            sidebar: vec!["spotify".into(), "instagram".into(), "x".into()],
+            sidebar: vec!["spotify".into(), "instagram".into(), "x".into(), "tiktok".into(), "chatgpt".into()],
             panel_width: 380.0,
             search_engine: "duckduckgo".into(),
             auto_translate: false,
