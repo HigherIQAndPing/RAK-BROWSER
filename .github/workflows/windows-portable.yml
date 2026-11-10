@@ -1,0 +1,142 @@
+name: Windows portable
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-portable-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Windows x64 - Tests und portable EXE
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node fuer Oberflaechen-Tests bereitstellen
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Tab-Islands-Oberflaeche testen
+        shell: pwsh
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'rak-ui-tools'
+          npm install --prefix "$tools" --no-audit --no-fund --no-save jsdom@26.1.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:NODE_PATH = Join-Path $tools 'node_modules'
+          node --test tests/ui.test.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Rust MSVC x64 installieren (nur CI)
+        shell: pwsh
+        run: |
+          rustup toolchain install stable-x86_64-pc-windows-msvc --profile minimal --no-self-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default stable-x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustc -vV
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Tests mit gesperrten Abhaengigkeiten
+        shell: pwsh
+        run: |
+          cargo test --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Optimierte Windows-EXE bauen
+        shell: pwsh
+        run: |
+          cargo build --locked --release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Eigenstaendige EXE pruefen und ZIP packen
+        shell: pwsh
+        run: ./packaging/package-windows.ps1
+
+      # GitHub erzeugt beim Download dieses Artefakts RAK-windows-x64.zip.
+      # Die Dateien liegen direkt im ZIP, nicht in einem weiteren ZIP.
+      - name: RAK-windows-x64.zip als Build-Artefakt bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: RAK-windows-x64
+          path: dist/RAK-windows-x64/*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Tag als privates Repository-Release veroeffentlichen
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Gepruefte portable Dateien herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: RAK-windows-x64
+          path: dist/RAK-windows-x64
+
+      - name: Release-ZIP und deutsche Hinweise erstellen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Compress-Archive -Path 'dist/RAK-windows-x64/*' -DestinationPath 'dist/RAK-windows-x64.zip' -Force
+          @'
+          ## RAK fuer Windows x64 - ohne Rust starten
+
+          1. Unter **Assets** die Datei **RAK-windows-x64.zip** herunterladen.
+          2. Das ZIP vollstaendig entpacken, nicht direkt aus dem ZIP starten.
+          3. **RAK.exe** oder **start.bat** doppelklicken.
+
+          Rust, Cargo und Visual Studio werden zum Starten nicht benoetigt.
+          Die MSVC-C-Laufzeit ist statisch eingebunden; ein Visual C++ Redistributable ist nicht erforderlich.
+
+          **Voraussetzung:** Microsoft Edge WebView2 Runtime (Evergreen). Sie ist nicht im ZIP enthalten.
+          Unter Windows 11 ist sie normalerweise vorhanden, ebenso auf vielen Windows-10-Systemen.
+          Falls sie fehlt, optional **setup-webview2.bat** oeffnen oder die offizielle Microsoft-Seite besuchen:
+          https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section
+          Beim Start wird weder Rust noch WebView2 automatisch heruntergeladen oder installiert.
+
+          Tab-Inseln buendeln zusammengehoerige Tabs: automatisch fuer verwandte neue Links,
+          manuell per Strg-/Umschalt-Auswahl, mit farbigen einklappbaren Griffen,
+          Namen/Farben im Kontextmenue sowie Drag-and-drop. Private und normale Tabs bleiben getrennt.
+          Weitere Bedienhinweise und Datenschutzgrenzen stehen in README.txt.
+
+          Dieses Release bleibt aufgrund der Sichtbarkeit des Repositorys privat.
+          Fuer den Download ist eine GitHub-Anmeldung mit Zugriff auf das Repository erforderlich.
+          '@ | Set-Content -LiteralPath 'dist/release-notes.md' -Encoding utf8
+
+      - name: Release mit GITHUB_TOKEN erstellen und ZIP hochladen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Benutzerkontrollierte Ref-Namen werden nur als zitierte Umgebungswerte genutzt.
+          # Releases erben die Repository-Sichtbarkeit; es gibt kein gh --private-Flag.
+          gh release view "$env:RELEASE_TAG" --repo "$env:GH_REPO" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit "$env:RELEASE_TAG" --repo "$env:GH_REPO" --title "RAK $env:RELEASE_TAG - Windows x64" --notes-file 'dist/release-notes.md'
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            gh release create "$env:RELEASE_TAG" --repo "$env:GH_REPO" --verify-tag --title "RAK $env:RELEASE_TAG - Windows x64" --notes-file 'dist/release-notes.md'
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          gh release upload "$env:RELEASE_TAG" 'dist/RAK-windows-x64.zip' --repo "$env:GH_REPO" --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -1,0 +1,5 @@
+/target/
+/dist/
+/RAK.exe
+*.pdb
+# Cargo.lock bleibt fuer reproduzierbare Anwendungs-Builds versioniert.

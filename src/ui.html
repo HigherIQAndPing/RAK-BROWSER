@@ -8,27 +8,50 @@
   body { background:var(--bg); color:var(--text); height:116px; overflow:hidden; }
   svg { display:block; }
 
-  /* --- Tab-Leiste --- */
-  #tabs { height:40px; display:flex; align-items:flex-end; gap:4px; padding:6px 8px 0 8px; border-bottom:1px solid #000; background:var(--bg); }
-  .logo { font-weight:900; font-size:15px; letter-spacing:3px; padding:0 12px 8px 6px; font-style:italic;
+  /* Die native UI-WebView bleibt exakt 116px: 40 + 44 + 32. */
+  #tabs { height:40px; display:flex; align-items:center; gap:4px; padding:0 8px; border-bottom:1px solid #000; background:var(--bg); }
+  .logo { flex:none; font-weight:900; font-size:15px; letter-spacing:3px; padding:0 8px 0 6px; font-style:italic;
           background:linear-gradient(90deg,#19d3ff,#7a5cff); -webkit-background-clip:text; background-clip:text; color:transparent;
           filter:drop-shadow(0 0 6px rgba(25,211,255,.55)); cursor:default; }
-  .tab { display:flex; align-items:center; gap:8px; max-width:200px; min-width:90px; flex:0 1 200px; height:32px; padding:0 8px 0 12px;
+  #tab-scroll { flex:1; min-width:0; height:39px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; }
+  #tab-scroll::-webkit-scrollbar { display:none; }
+  #tab-list { display:flex; align-items:flex-end; gap:4px; width:max-content; min-width:100%; height:39px; padding-top:4px; }
+  .tab { display:flex; align-items:center; gap:6px; width:164px; min-width:164px; flex:none; height:32px; padding:0 6px 0 10px;
          background:var(--tab); border-radius:8px 8px 0 0; color:var(--dim); font-size:12px; cursor:pointer; border:1px solid transparent; border-bottom:none; }
   .tab:hover { background:var(--panel2); }
   .tab.active { background:var(--toolbar); color:var(--text); border-color:var(--accent); box-shadow:0 -2px 12px -4px var(--accent); }
   .tab.private { background:#1a1426; }
   .tab.private.active { border-color:var(--priv); box-shadow:0 -2px 12px -4px var(--priv); }
+  .tab.selected { box-shadow:inset 0 0 0 2px var(--accent); }
+  .tab.private.selected { box-shadow:inset 0 0 0 2px var(--priv); }
   .tab .badge { font-size:9px; font-weight:700; letter-spacing:.5px; color:var(--priv); border:1px solid var(--priv); border-radius:4px; padding:0 3px; }
-  .tab .title { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tab .x { width:18px; height:18px; line-height:18px; text-align:center; border-radius:50%; }
+  .tab .title { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tab .x { flex:none; width:20px; height:20px; border:0; background:transparent; color:inherit; font-size:15px; text-align:center; border-radius:50%; cursor:pointer; }
   .tab .x:hover { background:var(--accent); color:#0d0d12; }
   .tab.private .x:hover { background:var(--priv); color:#fff; }
-  .tabbtn { width:30px; height:30px; margin-bottom:2px; border:none; border-radius:8px; background:var(--panel); color:var(--accent);
+  .island { --island-color:#19d3ff; flex:none; display:flex; align-items:center; gap:3px; height:36px; padding:2px 3px 0; border:1px solid var(--island-color); border-bottom:3px solid var(--island-color); border-radius:9px 9px 0 0; background:var(--panel); }
+  .island-members { display:flex; align-items:flex-end; gap:3px; }
+  .island-members[hidden] { display:none; }
+  .island .tab { height:30px; width:150px; min-width:150px; }
+  .island-handle { display:flex; align-items:center; gap:5px; height:27px; max-width:180px; border:0; border-radius:6px; padding:0 7px; background:var(--island-color); color:#101018; font-size:11px; font-weight:700; cursor:pointer; flex:none; }
+  .island-name { max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .island-count { font-variant-numeric:tabular-nums; opacity:.8; }
+  .island-handle.contains-active::before { content:''; width:6px; height:6px; flex:none; border-radius:50%; background:#101018; box-shadow:0 0 0 2px #ffffff90; }
+  .island-handle.has-selection { outline:2px solid var(--text); outline-offset:-2px; }
+  .drop-target { outline:2px dashed var(--accent) !important; outline-offset:-3px; }
+  .tabbtn { flex:none; width:30px; height:30px; border:none; border-radius:8px; background:var(--panel); color:var(--accent);
             font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .tabbtn:hover { background:var(--accent); color:#0d0d12; }
+  .tabbtn:disabled, .pill:disabled { opacity:.35; cursor:default; }
+  .tabbtn:disabled:hover { background:var(--panel); color:var(--accent); }
+  .scrollbtn { width:20px; font-size:15px; }
+  #group-tabs { position:relative; }
+  #selection-count { position:absolute; right:1px; bottom:1px; border-radius:5px; background:var(--accent); color:#0d0d12; font-size:9px; padding:0 2px; }
+  #selection-count:empty { display:none; }
   #privtab { color:var(--priv); }
   #privtab:hover { background:var(--priv); color:#fff; }
+  button:focus-visible, [role="tab"]:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 
   /* --- Werkzeugleiste --- */
   #bar { height:44px; display:flex; align-items:center; gap:6px; padding:0 8px; background:var(--toolbar); }
@@ -67,10 +90,24 @@
   .pill.ok { background:var(--accent); color:#0d0d12; font-weight:600; }
   .pill.no { background:var(--panel); color:var(--dim); }
   .pill.no:hover { color:var(--text); }
+  #bm.context { gap:5px; }
+  #bm.context .lbl { max-width:110px; overflow:hidden; text-overflow:ellipsis; }
+  #bm.context .pill { padding:0 9px; }
+  #bm.context select { min-width:0; width:145px; flex:0 1 145px; border-radius:6px; padding-left:7px; }
+  #bm.context input { width:200px; min-width:60px; flex:0 1 200px; border-radius:6px; padding-left:7px; }
+  #context-close { margin-left:auto; width:26px; padding:0 !important; }
 </style>
 </head>
 <body>
-  <div id="tabs"></div>
+  <div id="tabs" aria-label="Tab-Leiste">
+    <div class="logo" title="RAK – Render · Accelerated · Kinetic">RAK</div>
+    <button class="tabbtn scrollbtn" id="scroll-left" aria-label="Tabs nach links scrollen" title="Tabs nach links scrollen">‹</button>
+    <div id="tab-scroll"><div id="tab-list" role="tablist" aria-label="Offene Tabs und Tab-Inseln"></div></div>
+    <button class="tabbtn scrollbtn" id="scroll-right" aria-label="Tabs nach rechts scrollen" title="Tabs nach rechts scrollen">›</button>
+    <button class="tabbtn" id="group-tabs" aria-label="Ausgewählte Tabs gruppieren" title="Tabs auswählen / gruppieren"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M9 5v14M15 5v14"/></svg><span id="selection-count"></span></button>
+    <button class="tabbtn" id="newtab" aria-label="Neuer Tab (Strg+T)" title="Neuer Tab (Strg+T)">+</button>
+    <button class="tabbtn" id="privtab" aria-label="Neuer privater Tab (Strg+Umschalt+N)" title="Neuer privater Tab (Strg+Umschalt+N)"></button>
+  </div>
   <div id="bar">
     <button class="btn" id="back" title="Zurück">◀</button>
     <button class="btn" id="fwd" title="Vor">▶</button>
@@ -85,6 +122,7 @@
     <button class="btn" id="settings" title="Einstellungen" aria-label="Einstellungen"></button>
   </div>
   <div id="bm"></div>
+  <div id="tab-status" class="sr-only" role="status" aria-live="polite"></div>
 <script>
   const send = (m) => {
     try {
@@ -111,12 +149,16 @@
     smallFolder: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></svg>'
   };
 
-  const state = { tabs: [], active: 0, bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null };
-  const tabsEl = document.getElementById("tabs");
+  const state = { tabs: [], active: 0, islands: [], selected: new Set(), anchor: null, context: null, dragIds: [],
+    bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null };
+  const tabsEl = document.getElementById("tab-list");
+  const tabScroll = document.getElementById("tab-scroll");
+  const groupButton = document.getElementById("group-tabs");
   const urlEl = document.getElementById("url");
   const starEl = document.getElementById("star");
   const translateEl = document.getElementById("translate");
   const bmEl = document.getElementById("bm");
+  document.getElementById("privtab").innerHTML = ICON.mask;
   document.getElementById("hist").innerHTML = ICON.hist;
   document.getElementById("bmgr").innerHTML = ICON.folder;
   document.getElementById("extbtn").innerHTML = ICON.puzzle;
@@ -141,24 +183,270 @@
   const isHttp = (u) => /^https?:\/\//i.test(u || "");
 
   // ---- Tabs ----
-  function renderTabs() {
-    tabsEl.innerHTML = "";
-    const logo = el("div", "logo", "RAK");
-    logo.title = "RAK – Render · Accelerated · Kinetic";
-    tabsEl.appendChild(logo);
-    for (const t of state.tabs) {
-      const tab = el("div", "tab" + (t.id === state.active ? " active" : "") + (t.private ? " private" : ""));
-      if (t.private) tab.appendChild(el("span", "badge", "PRIVAT"));
-      tab.appendChild(el("span", "title", t.title || t.url || "Neuer Tab"));
-      const x = el("span", "x", "×");
-      x.onclick = (e) => { e.stopPropagation(); send("close:" + t.id); };
-      tab.onclick = () => send("switch:" + t.id);
-      tab.appendChild(x);
-      tabsEl.appendChild(tab);
+  const tabById = (id) => state.tabs.find(t => t.id === id);
+  const islandById = (id) => state.islands.find(g => g.id === id);
+  const selectedTabs = () => state.tabs.filter(t => state.selected.has(t.id));
+  const announce = (text) => { document.getElementById("tab-status").textContent = text; };
+  const islandCommand = (name, data) => send("island-" + name + ":" + JSON.stringify(data));
+  const colors = [
+    ["#19d3ff", "Türkis"], ["#7a5cff", "Violett"], ["#a45cff", "Lila"],
+    ["#45d7a1", "Grün"], ["#ffd24a", "Gelb"], ["#ff9859", "Orange"],
+    ["#ff6b85", "Rosa"], ["#7ea8ff", "Blau"], ["#a6a6b8", "Grau"]
+  ];
+  function safeColor(value) {
+    if (typeof value !== "string") return colors[0][0];
+    return (/^#[0-9a-f]{3,8}$/i.test(value) ||
+      (window.CSS && CSS.supports && CSS.supports("color", value))) ? value : colors[0][0];
+  }
+  function focusKey(element) {
+    return element && element.dataset ? element.dataset.focus : null;
+  }
+  function restoreTabFocus(key) {
+    if (!key) return;
+    const target = [...tabsEl.querySelectorAll("[data-focus]")].find(e => e.dataset.focus === key);
+    if (target) target.focus({ preventScroll:true });
+  }
+  function scrollButtons() {
+    document.getElementById("scroll-left").disabled = tabScroll.scrollLeft <= 1;
+    document.getElementById("scroll-right").disabled = tabScroll.scrollLeft + tabScroll.clientWidth >= tabScroll.scrollWidth - 1;
+  }
+  function revealActive() {
+    const t = activeTab();
+    if (!t) return;
+    const g = t.island == null ? null : islandById(t.island);
+    const target = g && g.collapsed
+      ? [...tabsEl.querySelectorAll(".island-handle")].find(e => e.dataset.island === String(g.id))
+      : [...tabsEl.querySelectorAll(".tab")].find(e => e.dataset.tab === String(t.id));
+    if (!target) return;
+    const viewport = tabScroll.getBoundingClientRect(), rect = target.getBoundingClientRect();
+    if (rect.left < viewport.left) tabScroll.scrollLeft -= viewport.left - rect.left + 4;
+    else if (rect.right > viewport.right) tabScroll.scrollLeft += rect.right - viewport.right + 4;
+    scrollButtons();
+  }
+  function refreshSelection() {
+    for (const node of tabsEl.querySelectorAll(".tab")) {
+      const t = state.tabs.find(t => String(t.id) === node.dataset.tab);
+      const selected = !!t && state.selected.has(t.id);
+      node.classList.toggle("selected", selected);
+      node.setAttribute("aria-label", (t ? (t.title || t.url || "Neuer Tab") + (t.private ? ", privat" : "") : "Tab") + (selected ? ", zum Gruppieren ausgewählt" : ""));
     }
-    const nt = el("button", "tabbtn", "+"); nt.id = "newtab"; nt.title = "Neuer Tab"; nt.onclick = () => send("new");
-    const pt = el("button", "tabbtn"); pt.id = "privtab"; pt.title = "Neuer privater Tab (kein Verlauf)"; pt.innerHTML = ICON.mask; pt.onclick = () => send("newp");
-    tabsEl.append(nt, pt);
+    for (const handle of tabsEl.querySelectorAll(".island-handle")) {
+      handle.classList.toggle("has-selection", selectedTabs().some(t => String(t.island) === handle.dataset.island));
+    }
+    document.getElementById("selection-count").textContent = state.selected.size ? String(state.selected.size) : "";
+    groupButton.disabled = !state.tabs.length;
+    groupButton.setAttribute("aria-label", state.selected.size ? state.selected.size + " ausgewählte Tabs gruppieren" : "Aktiven Tab gruppieren / Auswahl verwalten");
+    groupButton.title = "Tab-Inseln: Strg/Klick wählt Tabs, Umschalt/Klick einen Bereich (gleicher Privatmodus)";
+  }
+  function selectTab(t, event) {
+    const anchor = tabById(state.anchor);
+    if (event.shiftKey) {
+      if (anchor && !!anchor.private === !!t.private) {
+        const a = state.tabs.indexOf(anchor), b = state.tabs.indexOf(t);
+        state.selected = new Set(state.tabs.slice(Math.min(a,b), Math.max(a,b) + 1).filter(x => !!x.private === !!t.private).map(x => x.id));
+      } else { state.selected = new Set([t.id]); state.anchor = t.id; }
+    } else if (event.ctrlKey || event.metaKey) {
+      if (selectedTabs().some(x => !!x.private !== !!t.private)) state.selected.clear();
+      if (state.selected.has(t.id)) state.selected.delete(t.id); else state.selected.add(t.id);
+      state.anchor = t.id;
+    } else {
+      state.selected.clear(); state.anchor = t.id; send("switch:" + t.id);
+    }
+    refreshSelection();
+    announce(state.selected.size ? state.selected.size + " Tabs ausgewählt" : "Tab-Auswahl aufgehoben");
+    if (state.context && state.context.type === "tabs") {
+      if (!state.selected.size) closeContext(); else renderBm();
+    }
+  }
+  function openTabContext(t) {
+    if (t && !state.selected.has(t.id)) { state.selected = new Set([t.id]); state.anchor = t.id; }
+    if (!state.selected.size) {
+      const current = activeTab();
+      if (!current) return;
+      state.selected.add(current.id); state.anchor = current.id;
+    }
+    state.context = { type:"tabs", returnFocus:t ? "tab:" + t.id : null };
+    refreshSelection(); renderBm();
+  }
+  function openIslandContext(g) {
+    state.context = { type:"island", id:g.id, returnFocus:"island:" + g.id };
+    renderBm();
+  }
+  function closeContext(restoreFocus = false) {
+    const key = state.context && state.context.returnFocus;
+    state.context = null; renderBm();
+    if (restoreFocus) { if (key) restoreTabFocus(key); else groupButton.focus({ preventScroll:true }); }
+  }
+  function dragPayload() {
+    const tabs = state.dragIds.map(tabById).filter(Boolean);
+    return tabs.length && tabs.every(t => !!t.private === !!tabs[0].private) ? tabs : [];
+  }
+  function dropAction(target, groupTarget) {
+    const moving = dragPayload();
+    if (!moving.length || !!target.private !== !!moving[0].private) return null;
+    const g = groupTarget ? target : islandById(target.island);
+    if (g) {
+      if (!!g.private !== !!moving[0].private) return null;
+      const ids = moving.filter(t => t.island !== g.id).map(t => t.id);
+      return ids.length ? { name:"add", data:{ island:g.id, tabs:ids } } : null;
+    }
+    if (moving.some(t => t.id === target.id)) return null;
+    return { name:"create", data:{ tabs:[target.id, ...moving.map(t => t.id)] } };
+  }
+  function bindDrop(node, target, groupTarget = false) {
+    node.addEventListener("dragover", (e) => {
+      if (!dropAction(target, groupTarget)) return;
+      e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      node.classList.add("drop-target");
+    });
+    node.addEventListener("dragleave", () => node.classList.remove("drop-target"));
+    node.addEventListener("drop", (e) => {
+      const action = dropAction(target, groupTarget);
+      node.classList.remove("drop-target");
+      if (!action) return;
+      e.preventDefault(); e.stopPropagation(); islandCommand(action.name, action.data); state.dragIds = [];
+    });
+  }
+  function makeTab(t) {
+    const tab = el("div", "tab" + (t.id === state.active ? " active" : "") + (t.private ? " private" : ""));
+    tab.dataset.tab = String(t.id); tab.dataset.focus = "tab:" + t.id;
+    tab.setAttribute("role", "tab"); tab.setAttribute("aria-selected", String(t.id === state.active));
+    tab.setAttribute("aria-keyshortcuts", "Enter Space Delete"); tab.tabIndex = t.id === state.active ? 0 : -1;
+    tab.title = (t.title || t.url || "Neuer Tab") + "\nStrg/Klick: auswählen · Umschalt/Klick: Bereich · Rechtsklick: Tab-Inseln";
+    if (t.private) tab.appendChild(el("span", "badge", "PRIVAT"));
+    tab.appendChild(el("span", "title", t.title || t.url || "Neuer Tab"));
+    const x = el("button", "x", "×"); x.tabIndex = -1; x.dataset.focus = "close:" + t.id;
+    x.title = "Tab schließen"; x.setAttribute("aria-label", "Tab schließen: " + (t.title || t.url || "Neuer Tab"));
+    x.onclick = (e) => { e.stopPropagation(); send("close:" + t.id); };
+    tab.onclick = (e) => selectTab(t, e);
+    tab.oncontextmenu = (e) => { e.preventDefault(); openTabContext(t); };
+    tab.onkeydown = (e) => {
+      if (e.target !== tab) return;
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectTab(t,e); }
+      if (e.key === "Delete" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); send("close:" + t.id); }
+      if ((e.shiftKey && e.key === "F10") || e.key === "ContextMenu") { e.preventDefault(); openTabContext(t); focusContext(); }
+    };
+    tab.draggable = true;
+    tab.addEventListener("dragstart", (e) => {
+      if (e.target === x) { e.preventDefault(); return; }
+      state.dragIds = state.selected.has(t.id) ? selectedTabs().map(x => x.id) : [t.id];
+      if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ rakTabs:state.dragIds })); }
+    });
+    tab.addEventListener("dragend", () => { state.dragIds = []; tabsEl.querySelectorAll(".drop-target").forEach(n => n.classList.remove("drop-target")); });
+    bindDrop(tab,t); tab.appendChild(x); return tab;
+  }
+  function renderTabs(shouldReveal = false) {
+    const position = tabScroll.scrollLeft, focused = focusKey(document.activeElement);
+    const focusedTab = document.activeElement && document.activeElement.closest(".tab");
+    const focusIsland = focusedTab ? tabById(Number(focusedTab.dataset.tab)) : null;
+    tabsEl.replaceChildren();
+    const rendered = new Set();
+    for (const t of state.tabs) {
+      const g = t.island == null ? null : islandById(t.island);
+      if (!g) { tabsEl.appendChild(makeTab(t)); continue; }
+      if (rendered.has(g.id)) continue;
+      rendered.add(g.id);
+      const members = state.tabs.filter(t => t.island === g.id);
+      const group = el("div", "island" + (g.collapsed ? " collapsed" : ""));
+      group.dataset.island = String(g.id); group.style.setProperty("--island-color", safeColor(g.color));
+      group.setAttribute("role", "group"); group.setAttribute("aria-label", (g.name || "Tab-Insel") + (g.private ? ", privat" : ""));
+      group.oncontextmenu = (e) => {
+        if (!e.target.closest(".tab")) { e.preventDefault(); openIslandContext(g); }
+      };
+      const handle = el("button", "island-handle" + (members.some(t => t.id === state.active) ? " contains-active" : ""));
+      handle.dataset.island = String(g.id); handle.dataset.focus = "island:" + g.id;
+      const name = g.name || "Insel " + g.id;
+      handle.append(el("span", "island-name", name), el("span", "island-count", String(members.length)), el("span", "island-arrow", g.collapsed ? "▸" : "▾"));
+      const label = name + ", " + members.length + " Tabs" + (g.private ? ", privat" : "") + (members.some(t => t.id === state.active) ? ", enthält aktiven Tab" : "");
+      handle.title = label + " · Klicken: " + (g.collapsed ? "aufklappen" : "zuklappen") + " · Rechtsklick: verwalten";
+      handle.setAttribute("aria-label", label); handle.setAttribute("aria-expanded", String(!g.collapsed));
+      handle.setAttribute("aria-controls", "island-members-" + g.id);
+      handle.onclick = () => send("island-toggle:" + g.id);
+      handle.oncontextmenu = (e) => { e.preventDefault(); openIslandContext(g); };
+      handle.onkeydown = (e) => {
+        if ((e.shiftKey && e.key === "F10") || e.key === "ContextMenu") { e.preventDefault(); openIslandContext(g); focusContext(); }
+      };
+      bindDrop(handle,g,true);
+      const container = el("div", "island-members"); container.id = "island-members-" + g.id; container.hidden = !!g.collapsed;
+      if (!g.collapsed) members.forEach(t => container.appendChild(makeTab(t)));
+      group.append(handle,container); tabsEl.appendChild(group);
+    }
+    refreshSelection(); tabScroll.scrollLeft = position;
+    restoreTabFocus(focused);
+    if (focusIsland && islandById(focusIsland.island)?.collapsed) restoreTabFocus("island:" + focusIsland.island);
+    if (shouldReveal) revealActive();
+    scrollButtons();
+  }
+  function focusContext() {
+    const target = bmEl.querySelector("button:not(:disabled), input, select:not(:disabled)");
+    if (target) target.focus({ preventScroll:true });
+  }
+  function contextButton(id, text, label, action, disabled = false, primary = false) {
+    const b = el("button", "pill " + (primary ? "ok" : "no"), text); b.id = id;
+    b.title = label; b.setAttribute("aria-label", label); b.disabled = disabled; b.onclick = action;
+    return b;
+  }
+  function renderContext() {
+    const c = state.context;
+    bmEl.setAttribute("role", "toolbar"); bmEl.setAttribute("aria-label", "Tab-Insel-Aktionen");
+    const close = contextButton("context-close", "×", "Tab-Insel-Menü schließen (Escape)", () => closeContext(true));
+    if (c.type === "tabs") {
+      const tabs = selectedTabs(), privacy = tabs.length ? !!tabs[0].private : null;
+      const valid = tabs.length > 0 && tabs.every(t => !!t.private === privacy);
+      bmEl.appendChild(el("span", "lbl", tabs.length + (privacy ? " private Tabs" : " Tabs")));
+      bmEl.appendChild(contextButton("island-create", "Gruppieren", "Auswahl als neue Tab-Insel gruppieren", () => {
+        islandCommand("create", { tabs:selectedTabs().map(t => t.id) }); closeContext();
+      }, !valid, true));
+      const select = el("select"); select.id = "island-target"; select.setAttribute("aria-label", "Ziel-Insel (gleicher Privatmodus)");
+      const option = el("option", null, "In Insel verschieben…"); option.value = ""; select.appendChild(option);
+      state.islands.filter(g => valid && !!g.private === privacy).forEach(g => {
+        const o = el("option", null, g.name || "Insel " + g.id); o.value = String(g.id);
+        o.disabled = tabs.every(t => t.island === g.id); select.appendChild(o);
+      });
+      if (c.target != null) select.value = String(c.target);
+      const eligible = [...select.options].some(o => o.value && !o.disabled);
+      select.disabled = !eligible;
+      const canMove = () => { const g = state.islands.find(g => String(g.id) === select.value); return valid && !!g && !!g.private === privacy && tabs.some(t => t.island !== g.id); };
+      const move = contextButton("island-add", "Verschieben", "Auswahl in die Ziel-Insel verschieben", () => {
+        if (!canMove()) return;
+        const g = state.islands.find(g => String(g.id) === select.value);
+        islandCommand("add", { island:g.id, tabs:selectedTabs().filter(t => t.island !== g.id).map(t => t.id) }); closeContext();
+      }, !canMove());
+      select.onchange = () => { c.target = select.value; move.disabled = !canMove(); };
+      bmEl.append(select, move, contextButton("island-remove", "Aus Insel lösen", "Ausgewählte Tabs aus ihrer Insel entfernen", () => {
+        islandCommand("remove", { tabs:selectedTabs().filter(t => t.island != null).map(t => t.id) }); closeContext();
+      }, !valid || !tabs.some(t => t.island != null)), close);
+      return;
+    }
+    const g = islandById(c.id);
+    if (!g) { state.context = null; renderBm(); return; }
+    if (c.type === "edit") {
+      bmEl.appendChild(el("span", "lbl", "Tab-Insel:"));
+      const name = el("input"); name.id = "island-name"; name.value = c.name; name.maxLength = 80;
+      name.placeholder = "Name der Insel"; name.setAttribute("aria-label", "Name der Tab-Insel");
+      const color = el("select"); color.id = "island-color"; color.setAttribute("aria-label", "Farbe der Tab-Insel");
+      const palette = colors.slice();
+      if (!palette.some(([value]) => value === c.color)) palette.unshift([c.color,"Aktuelle Farbe"]);
+      palette.forEach(([value,label]) => { const o = el("option", null, label); o.value = value; color.appendChild(o); }); color.value = c.color;
+      const save = () => {
+        const value = name.value.trim(); if (!value) return;
+        islandCommand("rename", { id:g.id, name:value, color:color.value }); closeContext(true);
+      };
+      const ok = contextButton("island-save", "Speichern", "Namen und Farbe speichern", save, !name.value.trim(), true);
+      name.oninput = () => { c.name = name.value; ok.disabled = !name.value.trim(); };
+      color.onchange = () => { c.color = color.value; };
+      name.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } };
+      bmEl.append(name,color,ok,contextButton("island-edit-cancel", "Zurück", "Bearbeitung abbrechen", () => { c.type = "island"; renderBm(); focusContext(); }),close);
+      return;
+    }
+    bmEl.append(el("span", "lbl", g.name || "Insel " + g.id),
+      contextButton("island-edit", "Name / Farbe", "Name und Farbe der Insel bearbeiten", () => {
+        c.type = "edit"; c.name = g.name || "Insel " + g.id; c.color = safeColor(g.color); renderBm();
+        const input = document.getElementById("island-name"); input.focus(); input.select();
+      }),
+      contextButton("island-new", "+ Tab", "Neuen Tab in dieser Insel öffnen (Alt+T für aktive Insel)", () => { send("island-new:" + g.id); closeContext(); }),
+      contextButton("island-dissolve", "Auflösen", "Insel auflösen, Tabs behalten", () => { send("island-dissolve:" + g.id); closeContext(); }),
+      contextButton("island-close", "Insel schließen", "Insel und alle ihre Tabs schließen", () => { send("island-close:" + g.id); closeContext(); }),close);
   }
 
   function updateStar() {
@@ -184,6 +472,9 @@
 
   function renderBm() {
     bmEl.innerHTML = "";
+    bmEl.classList.toggle("context", !!state.context);
+    bmEl.removeAttribute("role"); bmEl.removeAttribute("aria-label");
+    if (state.context) { renderContext(); return; }
     const { bookmarks, folders } = state.bm;
 
     if (state.adding) {
@@ -232,9 +523,31 @@
 
   // ---- Schnittstelle zu Rust ----
   window.rak = {
-    setTabs(tabs, active) {
-      state.tabs = tabs; state.active = active;
-      renderTabs(); updateStar();
+    setTabs(tabs, active, islands = []) {
+      // Nur Aktivierung oder ein Wechsel des sichtbaren Aktiv-Ziels scrollt automatisch.
+      // Titel-/URL-Updates dürfen die vom Benutzer gewählte Scrollposition nicht ändern.
+      const visibleActiveKey = () => {
+        const t = activeTab(), g = t && t.island != null ? islandById(t.island) : null;
+        return g && g.collapsed ? "island:" + g.id : "tab:" + state.active;
+      };
+      const oldActive = state.active, oldTarget = visibleActiveKey();
+      const contextKey = () => JSON.stringify({
+        selected:selectedTabs().map(t => [t.id,!!t.private,t.island]),
+        islands:state.islands.map(g => [g.id,g.name,g.color,!!g.private]), context:state.context && state.context.type
+      });
+      const oldContext = contextKey();
+      state.tabs = Array.isArray(tabs) ? tabs : []; state.active = active;
+      state.islands = Array.isArray(islands) ? islands : [];
+      const ids = new Set(state.tabs.map(t => t.id));
+      state.selected = new Set([...state.selected].filter(id => ids.has(id)));
+      const selected = selectedTabs();
+      if (selected.length) state.selected = new Set(selected.filter(t => !!t.private === !!selected[0].private).map(t => t.id));
+      if (!ids.has(state.anchor)) state.anchor = null;
+      state.dragIds = state.dragIds.filter(id => ids.has(id));
+      if (state.context && ((state.context.type === "tabs" && !state.selected.size) ||
+        (state.context.type !== "tabs" && !islandById(state.context.id)))) state.context = null;
+      renderTabs(oldActive !== active || oldTarget !== visibleActiveKey()); updateStar();
+      if (oldContext !== contextKey()) renderBm();
       const t = activeTab();
       translateEl.disabled = !t || !isHttp(t.url) || t.url.startsWith('https://translate.google.com/');
       if (t && document.activeElement !== urlEl) urlEl.value = t.url || "";
@@ -253,6 +566,60 @@
   };
 
   // ---- Bedienung ----
+  document.getElementById("newtab").onclick = () => send("new");
+  document.getElementById("privtab").onclick = () => send("newp");
+  groupButton.onclick = () => { openTabContext(); focusContext(); };
+  function scrollTabs(direction) {
+    tabScroll.scrollLeft += direction * Math.max(160, tabScroll.clientWidth * .75); scrollButtons();
+  }
+  document.getElementById("scroll-left").onclick = () => scrollTabs(-1);
+  document.getElementById("scroll-right").onclick = () => scrollTabs(1);
+  tabScroll.addEventListener("scroll", scrollButtons);
+  tabScroll.addEventListener("wheel", (e) => {
+    if (e.ctrlKey || e.metaKey || tabScroll.scrollWidth <= tabScroll.clientWidth) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (delta) { e.preventDefault(); tabScroll.scrollLeft += delta; scrollButtons(); }
+  }, { passive:false });
+  window.addEventListener("resize", scrollButtons);
+  tabsEl.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || !["ArrowLeft","ArrowRight","Home","End"].includes(e.key)) return;
+    const items = [...tabsEl.querySelectorAll(".tab, .island-handle")];
+    const current = document.activeElement;
+    if (!items.includes(current)) return;
+    e.preventDefault();
+    const index = items.indexOf(current), next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : (index + (e.key === "ArrowRight" ? 1 : -1) + items.length) % items.length;
+    items[next].focus({ preventScroll:true });
+    const viewport = tabScroll.getBoundingClientRect(), rect = items[next].getBoundingClientRect();
+    if (rect.left < viewport.left) tabScroll.scrollLeft -= viewport.left - rect.left + 4;
+    else if (rect.right > viewport.right) tabScroll.scrollLeft += rect.right - viewport.right + 4;
+    scrollButtons();
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (state.context && !bmEl.contains(e.target) && !groupButton.contains(e.target)) closeContext();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.defaultPrevented) return;
+    const ctrl = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
+    let command = null;
+    if (ctrl && !e.altKey && key === "t" && !e.shiftKey) command = "new";
+    else if (ctrl && !e.altKey && key === "n" && e.shiftKey) command = "newp";
+    else if (ctrl && !e.altKey && key === "w" && !e.shiftKey && activeTab()) command = "close:" + state.active;
+    else if (ctrl && !e.altKey && key === "tab" && state.tabs.length) {
+      const index = state.tabs.findIndex(t => t.id === state.active);
+      const next = (Math.max(index,0) + (e.shiftKey ? -1 : 1) + state.tabs.length) % state.tabs.length;
+      command = "switch:" + state.tabs[next].id;
+    } else if (e.altKey && !ctrl && !e.shiftKey && key === "t") {
+      const t = activeTab(); if (t && t.island != null && islandById(t.island)) command = "island-new:" + t.island;
+    } else if (key === "escape") {
+      e.preventDefault(); state.selected.clear(); state.anchor = null; refreshSelection();
+      if (state.context) closeContext(true);
+      else if (state.adding) { state.adding = null; renderBm(); }
+      announce("Tab-Auswahl aufgehoben"); return;
+    }
+    if (command) { e.preventDefault(); send(command); }
+  });
+  document.querySelectorAll("#bar button").forEach(b => { if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", b.title); });
+  urlEl.setAttribute("aria-label", "Suchen oder Adresse eingeben");
   document.getElementById("back").onclick = () => send("back");
   document.getElementById("fwd").onclick = () => send("fwd");
   document.getElementById("reload").onclick = () => send("reload");
@@ -266,6 +633,7 @@
     const t = activeTab();
     if (!t || !isHttp(t.url)) return;
     if (state.bm.bookmarks.some(b => b.url === t.url)) { send("bmdelurl:" + t.url); return; }
+    state.context = null;
     state.adding = { title: t.title || t.url, url: t.url };
     renderBm();
     const n = document.getElementById("bmName"); if (n) { n.focus(); n.select(); }
@@ -281,7 +649,7 @@
   urlEl.addEventListener("blur", () => { justFocused = false; });
 
   if (!hasIpc) {
-    urlEl.placeholder = "⚠ Nicht in RAK geöffnet – bitte mit „cargo run --release“ starten, nicht ui.html im Browser öffnen";
+    urlEl.placeholder = "Nicht in RAK geöffnet – bitte RAK.exe oder start.bat starten, nicht ui.html im Browser öffnen";
     urlEl.disabled = true;
   }
   renderTabs(); renderBm(); updateStar();

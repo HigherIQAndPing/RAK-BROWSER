@@ -2,8 +2,10 @@
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
 mod ext;
+mod islands;
 mod store;
 
+use islands::TabIslands;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::process::Command;
@@ -46,7 +48,7 @@ enum UserEvent {
     Started(u32, String),
     Loaded(u32, String),
     /// Popup / target=_blank einer Webseite -> neuer Tab
-    OpenUrl(String),
+    OpenUrl { url: String, source: Option<u32> },
     /// Ergebnis einer Erweiterungs-Installation (JSON), kommt aus einem Hintergrund-Thread
     Ext(String),
 }
@@ -211,6 +213,7 @@ struct State {
     panel_w: f64,
     drag_start_w: f64,
     tabs: Vec<Tab>,
+    islands: TabIslands,
     next_id: u32,
     active: u32,
     store: Store,
@@ -262,9 +265,13 @@ impl State {
         let list: Vec<_> = self
             .tabs
             .iter()
-            .map(|t| json!({ "id": t.id, "title": t.title, "url": t.url, "private": t.private }))
+            .map(|t| json!({ "id": t.id, "title": t.title, "url": t.url, "private": t.private, "island": self.islands.island_for(t.id) }))
             .collect();
-        let js = format!("window.rak && window.rak.setTabs({}, {});", json!(list), self.active);
+        let islands: Vec<_> = self.islands.islands.iter().map(|g| json!({
+            "id": g.id, "name": g.name, "color": g.color,
+            "collapsed": g.collapsed, "private": g.private
+        })).collect();
+        let js = format!("window.rak && window.rak.setTabs({}, {}, {});", json!(list), self.active, json!(islands));
         let _ = self.ui.evaluate_script(&js);
     }
 
@@ -327,7 +334,7 @@ impl State {
                 let _ = p_load.send_event(e);
             })
             .with_new_window_req_handler(move |u| {
-                let _ = p_new.send_event(UserEvent::OpenUrl(u));
+                let _ = p_new.send_event(UserEvent::OpenUrl { url: u, source: Some(id) });
                 false // kein eigenes Fenster, die Adresse öffnet in einem neuen Tab
             });
         // Bewusst KEIN ipc-Handler: Webseiten dürfen den Browser nicht steuern.
@@ -355,7 +362,7 @@ impl State {
             // Eine interne Seite darf nie zu einer Webseite werden (sonst hätte diese IPC-Zugriff)
             .with_navigation_handler(move |u| {
                 if is_http(&u) {
-                    let _ = p_nav.send_event(UserEvent::OpenUrl(u));
+                    let _ = p_nav.send_event(UserEvent::OpenUrl { url: u, source: None });
                     false
                 } else {
                     true
@@ -378,9 +385,64 @@ impl State {
         }
     }
 
+    fn tab_metadata(&self) -> Vec<(u32, bool)> {
+        self.tabs.iter().map(|t| (t.id, t.private)).collect()
+    }
+
+    fn arrange_islands(&mut self) {
+        self.islands.arrange(&mut self.tabs, |t| t.id);
+    }
+
+    fn new_link_tab(&mut self, window: &Window, url: &str, source: Option<u32>) {
+        // Eine verspätete Anfrage eines bereits geschlossenen Tabs wird verworfen.
+        let private = match source {
+            Some(id) => match self.tabs.iter().find(|t| t.id == id) {
+                Some(tab) => tab.private,
+                None => return,
+            },
+            None => false,
+        };
+        let child = self.next_id;
+        self.new_web_tab(window, url, private);
+        if self.tabs.iter().any(|t| t.id == child) {
+            if let Some(source) = source {
+                self.islands.link(source, child, &self.tab_metadata());
+                self.islands.expand_tab(child);
+                self.arrange_islands();
+            }
+        }
+    }
+
+    fn new_island_tab(&mut self, window: &Window, island: u32) {
+        let Some(private) = self.islands.get(island).map(|g| g.private) else { return; };
+        let id = self.next_id;
+        self.new_web_tab(window, search_home(&self.store.settings.search_engine), private);
+        if self.tabs.iter().any(|t| t.id == id) {
+            self.islands.add(island, &[id], &self.tab_metadata());
+            self.islands.expand_tab(id);
+            self.arrange_islands();
+        }
+    }
+
+    /// Auch beim Gruppenschließen bleiben sichtbare Seite und aktiver Tab konsistent.
+    fn close_tabs(&mut self, ids: &[u32]) -> bool {
+        let old_index = self.tabs.iter().position(|t| t.id == self.active).unwrap_or(0);
+        self.tabs.retain(|t| !ids.contains(&t.id));
+        self.islands.remove(ids);
+        if self.tabs.is_empty() { return true; }
+        if !self.tabs.iter().any(|t| t.id == self.active) {
+            self.active = self.tabs[old_index.min(self.tabs.len() - 1)].id;
+            self.islands.expand_tab(self.active);
+        }
+        self.show_only();
+        self.push_internal();
+        false
+    }
+
     fn open_internal(&mut self, window: &Window, kind: Kind) {
         if let Some(t) = self.tabs.iter().find(|t| t.kind == kind) {
             self.active = t.id;
+            self.islands.expand_tab(self.active);
             self.show_only();
             self.push_internal();
             return;
@@ -539,10 +601,9 @@ impl State {
                     }
                 }
             }
-            UserEvent::OpenUrl(url) => {
+            UserEvent::OpenUrl { url, source } => {
                 if is_http(&url) {
-                    let private = self.tabs.iter().find(|t| t.id == self.active).map_or(false, |t| t.private);
-                    self.new_web_tab(window, &url, private);
+                    self.new_link_tab(window, &url, source);
                 }
             }
             UserEvent::Page(msg) => {
@@ -576,6 +637,7 @@ impl State {
                 if let Ok(id) = arg.parse::<u32>() {
                     if self.tabs.iter().any(|t| t.id == id) {
                         self.active = id;
+                        self.islands.expand_tab(id);
                         self.show_only();
                         self.push_internal();
                     }
@@ -583,15 +645,47 @@ impl State {
             }
             "close" => {
                 if let Ok(id) = arg.parse::<u32>() {
-                    self.tabs.retain(|t| t.id != id);
-                    if self.tabs.is_empty() {
+                    if self.close_tabs(&[id]) {
                         return true;
                     }
-                    if self.active == id {
-                        self.active = self.tabs.last().unwrap().id;
+                }
+            }
+            "island-create" | "island-add" | "island-remove" => {
+                if let Ok(v) = serde_json::from_str::<Value>(arg) {
+                    let ids: Vec<u32> = v["tabs"].as_array().into_iter().flatten()
+                        .filter_map(|id| id.as_u64().and_then(|id| u32::try_from(id).ok()))
+                        .collect();
+                    let tabs = self.tab_metadata();
+                    match cmd {
+                        "island-create" => { self.islands.create(&ids, &tabs); }
+                        "island-add" => {
+                            if let Some(id) = v["island"].as_u64().and_then(|id| u32::try_from(id).ok()) {
+                                self.islands.add(id, &ids, &tabs);
+                            }
+                        }
+                        _ => self.islands.remove(&ids),
                     }
-                    self.show_only();
-                    self.push_internal();
+                    self.arrange_islands();
+                }
+            }
+            "island-toggle" | "island-dissolve" | "island-close" | "island-new" => {
+                if let Ok(id) = arg.parse::<u32>() {
+                    match cmd {
+                        "island-toggle" => self.islands.toggle(id),
+                        "island-dissolve" => self.islands.dissolve(id),
+                        "island-new" => self.new_island_tab(window, id),
+                        _ => {
+                            let members = self.islands.members(id);
+                            if self.close_tabs(&members) { return true; }
+                        }
+                    }
+                }
+            }
+            "island-rename" => {
+                if let Ok(v) = serde_json::from_str::<Value>(arg) {
+                    if let Some(id) = v["id"].as_u64().and_then(|id| u32::try_from(id).ok()) {
+                        self.islands.rename(id, v["name"].as_str().unwrap_or(""), v["color"].as_str().unwrap_or(""));
+                    }
                 }
             }
             "nav" => match arg.trim() {
@@ -876,6 +970,7 @@ fn main() -> wry::Result<()> {
         panel_w,
         drag_start_w: panel_w,
         tabs: Vec::new(),
+        islands: TabIslands::default(),
         next_id: 1,
         active: 0,
         store,

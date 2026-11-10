@@ -1,0 +1,5 @@
+# Windows-EXE ohne separat zu installierendes Visual C++ Redistributable.
+# WebView2 Runtime bleibt eine unabhaengige Systemvoraussetzung.
+# Linux und andere Targets werden nicht veraendert.
+[target.'cfg(all(target_os = "windows", target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
