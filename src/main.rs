@@ -278,17 +278,18 @@ impl State {
         let (w, h) = window_size(window);
         let fullscreen = window.fullscreen().is_some();
         let chrome_y = if fullscreen { 0.0 } else { TITLEBAR_HEIGHT };
-        let content_y = chrome_y + CHROME_HEIGHT;
+        let content_y = if fullscreen { 0.0 } else { chrome_y + CHROME_HEIGHT };
         let body_h = h - content_y;
         place(&self.host, &self.titlebar, 0.0, 0.0, w, TITLEBAR_HEIGHT);
         let _ = self.titlebar.set_visible(!fullscreen);
         place(&self.host, &self.ui, 0.0, chrome_y, w, CHROME_HEIGHT);
-        place(&self.host, &self.side, 0.0, content_y, SIDEBAR_W, body_h);
+        let _ = self.ui.set_visible(!fullscreen);
+        let _ = self.side.set_visible(!fullscreen);
         let pw = clamp_width(self.panel_w, w);
         for (id, view) in &self.panels {
             let shown = self.open.as_deref() == Some(id.as_str());
             place(&self.host, view, SIDEBAR_W, content_y, pw, body_h);
-            let _ = view.set_visible(shown);
+            let _ = view.set_visible(shown && !fullscreen);
         }
         if let Some(split) = &self.split {
             place(
@@ -299,9 +300,9 @@ impl State {
                 SPLIT_W,
                 body_h,
             );
-            let _ = split.set_visible(self.open.is_some());
+            let _ = split.set_visible(self.open.is_some() && !fullscreen);
         }
-        let x = self.content_x(w);
+        let x = if fullscreen { 0.0 } else { self.content_x(w) };
         for t in &self.tabs {
             place(&self.host, &t.view, x, content_y, w - x, body_h);
         }

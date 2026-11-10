@@ -103,7 +103,13 @@ Die Befehle werden zusaetzlich in jede WebView injiziert, damit WebView2 die
 Tastendruecke nicht verschluckt; externe Webseiten erhalten dabei keine freie
 Browser-IPC-Schnittstelle, sondern nur diese vier fest erlaubten Befehle.
 F11 ist echter Vollbildmodus: Die obere RAK-Fensterleiste wird ausgeblendet
-und die Browseroberflaeche wird bis an den oberen Bildschirmrand verschoben.
+und auch Tab-Leiste, Adress-/Werkzeugleiste sowie Lesezeichenleiste werden
+ausgeblendet. Im Vollbild bleibt nur der Webseiteninhalt sichtbar.
+
+Der Homescreen ist ein vollflaechiges, responsives Raster. Karten, Schrift,
+Abstaende und Innenabstaende skalieren gemeinsam mit Breite und Hoehe des
+Fensters; beim Verkleinern wechselt das Raster auf zwei Spalten, ohne dass
+horizontal und vertikal unproportionale Streckungen entstehen.
 
 WEITERE FUNKTIONEN
 ------------------
