@@ -8,11 +8,12 @@
 * { box-sizing:border-box; }
 html,body { margin:0; min-height:100%; font-family:"Segoe UI",system-ui,sans-serif; color:var(--text); background:var(--bg); }
 body { overflow:auto; }
-.wrap { width:min(820px, calc(100% - 48px)); margin:0 auto; padding:62px 0 70px; }
-.header { display:flex; align-items:center; gap:16px; margin-bottom:28px; }
+.wrap { position:relative; width:min(1120px, calc(100% - 72px)); margin:0 auto; padding:68px 0 90px; }
+.wrap:before { content:""; position:absolute; inset:22px -34px auto; height:180px; border-top:1px solid #252d34; border-bottom:1px solid #1d252b; background:linear-gradient(90deg,transparent,#182a31 48%,transparent); opacity:.72; pointer-events:none; }
+.header { position:relative; display:flex; align-items:center; gap:18px; padding:0 0 25px; border-bottom:1px solid var(--line); margin-bottom:27px; }
 .logo { display:grid; place-items:center; width:58px; height:58px; border:1px solid #3b7f91; border-radius:12px; color:var(--accent); font-size:18px; font-weight:900; font-style:italic; letter-spacing:3px; background:#17242a; }
 .brand { color:var(--dim); font-size:12px; letter-spacing:.4px; }
-h1 { margin:3px 0 0; font-size:27px; font-weight:650; letter-spacing:-.4px; }
+h1 { margin:3px 0 0; font-size:clamp(27px,3vw,36px); font-weight:650; letter-spacing:-.4px; }
 .search { display:flex; gap:8px; align-items:center; padding:8px; margin-bottom:30px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
 .search input { flex:1; min-width:0; height:40px; border:0; outline:0; border-radius:7px; background:transparent; color:var(--text); padding:0 11px; font-size:14px; user-select:text; }
 .search input:focus { background:var(--panel2); }
@@ -20,18 +21,18 @@ h1 { margin:3px 0 0; font-size:27px; font-weight:650; letter-spacing:-.4px; }
 .search button { height:40px; padding:0 17px; border-radius:7px; color:#0c171a; background:var(--accent); font-weight:700; }
 .search button:hover { background:#79d7e8; }
 .section-title { margin:0 2px 10px; color:var(--dim); font-size:11px; font-weight:650; letter-spacing:1px; text-transform:uppercase; }
-.grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-.tile { min-height:112px; padding:15px; text-align:left; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
+.tile { min-height:142px; padding:18px; text-align:left; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
 .tile:hover { border-color:#4c7480; background:var(--panel2); }
-.tile .icon { display:grid; place-items:center; width:25px; height:25px; margin-bottom:18px; border-radius:6px; color:var(--accent); background:#202d33; font-size:14px; }
+.tile .icon { display:grid; place-items:center; width:30px; height:30px; margin-bottom:29px; border-radius:7px; color:var(--accent); background:#202d33; font-size:15px; }
 .tile strong { display:block; font-size:13px; font-weight:650; margin-bottom:4px; }
 .tile span { display:block; color:var(--dim); font-size:11px; line-height:1.35; }
 .bottom { display:flex; gap:8px; margin-top:20px; }
 .action { padding:9px 12px; border:1px solid var(--line); border-radius:7px; background:transparent; color:var(--dim); font-size:12px; }
 .action:hover { color:var(--text); border-color:#4c7480; background:var(--panel); }
 .status { margin-top:31px; color:#68717e; font-size:11px; }
-@media(max-width:650px) { .grid { grid-template-columns:repeat(2,1fr); } }
-@media(max-width:480px) { .wrap { width:calc(100% - 28px); padding-top:32px; } .grid { grid-template-columns:1fr 1fr; } h1 { font-size:22px; } }
+@media(max-width:650px) { .wrap { width:calc(100% - 32px); padding-top:38px; } .grid { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:480px) { .wrap { width:calc(100% - 28px); padding-top:32px; } .grid { grid-template-columns:1fr 1fr; gap:8px; } .tile { min-height:120px; padding:13px; } .tile .icon { margin-bottom:20px; } h1 { font-size:22px; } }
 </style>
 </head>
 <body>
@@ -46,7 +47,7 @@ h1 { margin:3px 0 0; font-size:27px; font-weight:650; letter-spacing:-.4px; }
     <button class="tile" data-url="https://open.spotify.com"><div class="icon">♫</div><strong>Spotify</strong><span>Musik öffnen</span></button>
   </section>
   <div class="bottom"><button class="action" data-command="new">＋ Neuer Tab</button><button class="action" data-command="newp">Privater Tab</button><button class="action" data-command="settings">Einstellungen</button></div>
-  <div class="status">RAK 0.4 · Tab Islands aktiv · Deine Daten bleiben auf deinem Gerät</div>
+  <div class="status">RAK 0.5 · Tab Islands aktiv · F11 Vollbild · Deine Daten bleiben auf deinem Gerät</div>
 </main>
 <script>
 const send = o => { try { const m=JSON.stringify(o); if(window.ipc?.postMessage)return window.ipc.postMessage(m); if(window.chrome?.webview)return window.chrome.webview.postMessage(m); if(window.webkit?.messageHandlers?.ipc)return window.webkit.messageHandlers.ipc.postMessage(m); } catch(e){} };

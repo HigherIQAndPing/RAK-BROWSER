@@ -96,9 +96,9 @@ Startseite wechselt dabei ihr Raster automatisch von vier auf zwei Spalten.
 Tastenkuerzel, solange die Browser-Oberflaeche oder Adressleiste den Fokus hat:
 Strg+T neuer Tab, Strg+Umschalt+N privater Tab, Strg+W aktiven Tab schliessen,
 Strg+Tab / Strg+Umschalt+Tab wechseln, Alt+T neuer Tab in der aktiven Insel.
-Die Browseroberflaeche verarbeitet Strg+T und Strg+W auch bei fokussierter
-Adressleiste. Wenn die Webseite selbst den Fokus hat, gelten deren eigene
-Tastenbefehle.
+Strg+T, Strg+Umschalt+N und Strg+W werden jetzt direkt vom Rust-Fenster
+verarbeitet und funktionieren deshalb auch bei fokussierter Webseite. F11
+schaltet den Browser in den Vollbildmodus und wieder zurueck.
 
 WEITERE FUNKTIONEN
 ------------------

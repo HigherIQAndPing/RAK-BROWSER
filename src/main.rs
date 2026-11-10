@@ -14,9 +14,10 @@ use std::collections::HashMap;
 use std::process::Command;
 use store::Store;
 use tao::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
-    window::{Window, WindowBuilder},
+    keyboard::{KeyCode, ModifiersState},
+    window::{Fullscreen, Window, WindowBuilder},
 };
 #[cfg(target_os = "windows")]
 use wry::WebViewBuilderExtWindows;
@@ -1185,6 +1186,7 @@ fn main() -> wry::Result<()> {
     };
     st.open_internal(&window, Kind::Home);
 
+    let mut modifiers = ModifiersState::default();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
@@ -1199,6 +1201,44 @@ fn main() -> wry::Result<()> {
                 ..
             } => {
                 st.layout(&window);
+            }
+            Event::WindowEvent {
+                event: WindowEvent::ModifiersChanged(state),
+                ..
+            } => {
+                modifiers = state;
+            }
+            Event::WindowEvent {
+                event:
+                    WindowEvent::KeyboardInput {
+                        event,
+                        ..
+                    },
+                ..
+            } if event.state == ElementState::Pressed && !event.repeat => {
+                let ctrl = modifiers.control_key();
+                let shift = modifiers.shift_key();
+                let command = match event.physical_key {
+                    KeyCode::F11 => Some("fullscreen".to_string()),
+                    KeyCode::KeyT if ctrl && !shift => Some("new".to_string()),
+                    KeyCode::KeyW if ctrl && !shift => Some(format!("close:{}", st.active)),
+                    KeyCode::KeyN if ctrl && shift => Some("newp".to_string()),
+                    _ => None,
+                };
+                if let Some(command) = command {
+                    if command == "fullscreen" {
+                        if window.fullscreen().is_some() {
+                            window.set_fullscreen(None);
+                        } else {
+                            window.set_fullscreen(Some(Fullscreen::Borderless(window.current_monitor())));
+                        }
+                        st.layout(&window);
+                    } else if st.ipc(&window, &command) {
+                        *control_flow = ControlFlow::Exit;
+                    } else {
+                        st.push_tabs();
+                    }
+                }
             }
             Event::UserEvent(ev) => {
                 if st.handle(&window, ev) {
