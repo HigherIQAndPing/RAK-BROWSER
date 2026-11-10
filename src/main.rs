@@ -37,6 +37,29 @@ const SPLIT_W: f64 = 8.0; // Breite des Ziehgriffs
 const MIN_CONTENT: f64 = 320.0; // so viel Platz bleibt mindestens für die Seite
 const MAX_TABS: usize = 12; // Tab-Limiter (RAK hält sich schlank)
 
+// Läuft auch in externen Webseiten. Die IPC-Schnittstelle akzeptiert aus
+// Browser-Tabs ausschließlich diese vier whitelisted Shortcut-Nachrichten.
+const GLOBAL_SHORTCUT_SCRIPT: &str = r#"
+(function () {
+  if (window.__rakShortcutsInstalled) return;
+  window.__rakShortcutsInstalled = true;
+  window.addEventListener('keydown', function (event) {
+    if (event.repeat) return;
+    var command = null;
+    var control = event.ctrlKey || event.metaKey;
+    if (event.key === 'F11') command = 'f11';
+    else if (control && !event.shiftKey && event.key.toLowerCase() === 't') command = 'ctrl-t';
+    else if (control && !event.shiftKey && event.key.toLowerCase() === 'w') command = 'ctrl-w';
+    else if (control && event.shiftKey && event.key.toLowerCase() === 'n') command = 'ctrl-shift-n';
+    if (command && window.ipc && window.ipc.postMessage) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      window.ipc.postMessage('shortcut:' + command);
+    }
+  }, true);
+})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 3] = [
     ("spotify", "https://open.spotify.com"),
@@ -378,9 +401,11 @@ impl State {
         let p_title = self.proxy.clone();
         let p_load = self.proxy.clone();
         let p_new = self.proxy.clone();
+        let p_shortcut = self.proxy.clone();
         let builder = new_builder()
             .with_bounds(rect(x, UI_HEIGHT, w - x, h - UI_HEIGHT))
             .with_url(url)
+            .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -399,8 +424,18 @@ impl State {
                     source: Some(id),
                 });
                 false // kein eigenes Fenster, die Adresse öffnet in einem neuen Tab
+            })
+            .with_ipc_handler(move |req| {
+                let body = req.body();
+                if body == "shortcut:f11"
+                    || body == "shortcut:ctrl-t"
+                    || body == "shortcut:ctrl-w"
+                    || body == "shortcut:ctrl-shift-n"
+                {
+                    let _ = p_shortcut.send_event(UserEvent::Ipc(body.to_string()));
+                }
             });
-        // Bewusst KEIN ipc-Handler: Webseiten dürfen den Browser nicht steuern.
+        // Externe Seiten dürfen nur die vier oben whitelisted Shortcut-Befehle senden.
         attach(builder, window, &self.host)
     }
 
@@ -423,8 +458,14 @@ impl State {
         let builder = new_builder()
             .with_bounds(rect(x, UI_HEIGHT, w - x, h - UI_HEIGHT))
             .with_html(html)
+            .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
             .with_ipc_handler(move |req| {
-                let _ = p_ipc.send_event(UserEvent::Page(req.body().to_string()));
+                let body = req.body();
+                if body.starts_with("shortcut:") {
+                    let _ = p_ipc.send_event(UserEvent::Ipc(body.to_string()));
+                } else {
+                    let _ = p_ipc.send_event(UserEvent::Page(body.to_string()));
+                }
             })
             // Eine interne Seite darf nie zu einer Webseite werden (sonst hätte diese IPC-Zugriff)
             .with_navigation_handler(move |u| {
@@ -752,11 +793,41 @@ impl State {
         match cmd {
             "window" => match arg {
                 "minimize" => window.set_minimized(true),
-                "maximize" => window.set_maximized(!window.is_maximized()),
+                "maximize" => {
+                    window.set_maximized(!window.is_maximized());
+                    self.layout(window);
+                }
                 "drag" => {
                     let _ = window.drag_window();
                 }
                 "close" => return true,
+                _ => {}
+            },
+            "shortcut" => match arg {
+                "f11" => {
+                    if window.fullscreen().is_some() {
+                        window.set_fullscreen(None);
+                    } else {
+                        window.set_fullscreen(Some(Fullscreen::Borderless(window.current_monitor())));
+                    }
+                    self.layout(window);
+                }
+                "ctrl-t" => self.new_web_tab(
+                    window,
+                    search_home(&self.store.settings.search_engine),
+                    false,
+                ),
+                "ctrl-shift-n" => self.new_web_tab(
+                    window,
+                    search_home(&self.store.settings.search_engine),
+                    true,
+                ),
+                "ctrl-w" => {
+                    let active = self.active;
+                    if self.close_tabs(window, &[active]) {
+                        return true;
+                    }
+                }
                 _ => {}
             },
             "ready" => {

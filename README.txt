@@ -99,6 +99,9 @@ Strg+Tab / Strg+Umschalt+Tab wechseln, Alt+T neuer Tab in der aktiven Insel.
 Strg+T, Strg+Umschalt+N und Strg+W werden jetzt direkt vom Rust-Fenster
 verarbeitet und funktionieren deshalb auch bei fokussierter Webseite. F11
 schaltet den Browser in den Vollbildmodus und wieder zurueck.
+Die Befehle werden zusaetzlich in jede WebView injiziert, damit WebView2 die
+Tastendruecke nicht verschluckt; externe Webseiten erhalten dabei keine freie
+Browser-IPC-Schnittstelle, sondern nur diese vier fest erlaubten Befehle.
 
 WEITERE FUNKTIONEN
 ------------------
