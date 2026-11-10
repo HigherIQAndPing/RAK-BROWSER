@@ -46,7 +46,7 @@ h1 { margin:3px 0 0; font-size:27px; font-weight:650; letter-spacing:-.4px; }
     <button class="tile" data-url="https://open.spotify.com"><div class="icon">♫</div><strong>Spotify</strong><span>Musik öffnen</span></button>
   </section>
   <div class="bottom"><button class="action" data-command="new">＋ Neuer Tab</button><button class="action" data-command="newp">Privater Tab</button><button class="action" data-command="settings">Einstellungen</button></div>
-  <div class="status">RAK 0.3.1 · Tab Islands aktiv · Deine Daten bleiben auf deinem Gerät</div>
+  <div class="status">RAK 0.4 · Tab Islands aktiv · Deine Daten bleiben auf deinem Gerät</div>
 </main>
 <script>
 const send = o => { try { const m=JSON.stringify(o); if(window.ipc?.postMessage)return window.ipc.postMessage(m); if(window.chrome?.webview)return window.chrome.webview.postMessage(m); if(window.webkit?.messageHandlers?.ipc)return window.webkit.messageHandlers.ipc.postMessage(m); } catch(e){} };

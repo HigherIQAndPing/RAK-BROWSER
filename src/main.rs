@@ -25,7 +25,9 @@ use wry::{
     PageLoadEvent, Rect, WebView, WebViewBuilder,
 };
 
-const UI_HEIGHT: f64 = 116.0; // Tab-Leiste (40) + Werkzeugleiste (44) + Lesezeichenleiste (32)
+const TITLEBAR_HEIGHT: f64 = 28.0;
+const CHROME_HEIGHT: f64 = 116.0; // Tab-Leiste (40) + Werkzeugleiste (44) + Lesezeichenleiste (32)
+const UI_HEIGHT: f64 = TITLEBAR_HEIGHT + CHROME_HEIGHT;
 const SIDEBAR_W: f64 = 52.0; // schmale Seitenleiste links
 const DEFAULT_PANEL_W: f64 = 380.0; // Standardbreite des App-Panels
 const SP_MIN: f64 = 280.0; // kleinste Panelbreite
@@ -220,6 +222,7 @@ fn make_host(_window: &Window) -> Host {}
 struct State {
     host: Host,
     proxy: EventLoopProxy<UserEvent>,
+    titlebar: WebView,
     ui: WebView,
     side: WebView,
     split: Option<WebView>,
@@ -250,7 +253,8 @@ impl State {
     fn layout(&self, window: &Window) {
         let (w, h) = window_size(window);
         let body_h = h - UI_HEIGHT;
-        place(&self.host, &self.ui, 0.0, 0.0, w, UI_HEIGHT);
+        place(&self.host, &self.titlebar, 0.0, 0.0, w, TITLEBAR_HEIGHT);
+        place(&self.host, &self.ui, 0.0, TITLEBAR_HEIGHT, w, CHROME_HEIGHT);
         place(&self.host, &self.side, 0.0, UI_HEIGHT, SIDEBAR_W, body_h);
         let pw = clamp_width(self.panel_w, w);
         for (id, view) in &self.panels {
@@ -745,6 +749,15 @@ impl State {
     fn ipc(&mut self, window: &Window, msg: &str) -> bool {
         let (cmd, arg) = msg.split_once(':').unwrap_or((msg, ""));
         match cmd {
+            "window" => match arg {
+                "minimize" => window.set_minimized(true),
+                "maximize" => window.set_maximized(!window.is_maximized()),
+                "drag" => {
+                    let _ = window.drag_window();
+                }
+                "close" => return true,
+                _ => {}
+            },
             "ready" => {
                 self.push_tabs();
                 self.push_bookmarks();
@@ -1099,6 +1112,7 @@ fn main() -> wry::Result<()> {
 
     let window = WindowBuilder::new()
         .with_title("RAK")
+        .with_decorations(false)
         .with_inner_size(tao::dpi::LogicalSize::new(1280.0, 800.0))
         .build(&event_loop)
         .expect("Fenster konnte nicht erstellt werden");
@@ -1107,13 +1121,26 @@ fn main() -> wry::Result<()> {
     let store = Store::load();
     let panel_w = store.settings.panel_width;
 
-    // Oberfläche oben (Tabs + Adressleiste + Lesezeichenleiste)
+    // RAK-Titelleiste liegt außerhalb der Browser-Werkzeugleisten.
     let (w, h) = window_size(&window);
     ext::sanitize(); // kaputte Reste aus \extensions\ entfernen, sonst könnte der Start scheitern
+    let title_proxy = proxy.clone();
+    let titlebar = attach(
+        new_builder()
+            .with_bounds(rect(0.0, 0.0, w, TITLEBAR_HEIGHT))
+            .with_html(include_str!("titlebar.html"))
+            .with_ipc_handler(move |req| {
+                let _ = title_proxy.send_event(UserEvent::Ipc(req.body().to_string()));
+            }),
+        &window,
+        &host,
+    )?;
+
+    // Oberfläche darunter (Tabs + Adressleiste + Lesezeichenleiste)
     let make_ui = |with_ext: bool| {
         let p = proxy.clone();
         let mut b = new_builder()
-            .with_bounds(rect(0.0, 0.0, w, UI_HEIGHT))
+            .with_bounds(rect(0.0, TITLEBAR_HEIGHT, w, CHROME_HEIGHT))
             .with_html(include_str!("ui.html"))
             .with_ipc_handler(move |req| {
                 let _ = p.send_event(UserEvent::Ipc(req.body().to_string()));
@@ -1142,6 +1169,7 @@ fn main() -> wry::Result<()> {
     let mut st = State {
         host,
         proxy,
+        titlebar,
         ui,
         side,
         split: None,

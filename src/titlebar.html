@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><style>
+:root{--bg:#1d1e1c;--line:#30322f;--text:#c9ccc8;--hover:#30322f;--close:#c94f4f}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+#bar{height:100%;display:flex;align-items:center;border-bottom:1px solid var(--line);-webkit-app-region:drag}
+.brand{display:flex;align-items:center;gap:8px;padding-left:12px;min-width:120px;font-size:12px;font-weight:650;letter-spacing:.2px;color:#d9dcda;user-select:none}
+.mark{display:grid;place-items:center;width:17px;height:17px;border:1px solid #5bb6c8;border-radius:4px;color:#65cfe3;font-size:8px;font-weight:900;font-style:italic;letter-spacing:1px}
+.spacer{flex:1}.controls{display:flex;height:100%;-webkit-app-region:no-drag}.window-btn{width:46px;height:100%;border:0;background:transparent;color:#afb3af;font-size:13px;cursor:pointer}.window-btn:hover{background:var(--hover);color:#fff}.window-btn.close:hover{background:var(--close);color:#fff}
+</style></head>
+<body><div id="bar"><div class="brand"><span class="mark">R</span><span>RAK</span></div><div class="spacer"></div><div class="controls"><button class="window-btn" data-cmd="minimize" aria-label="Minimieren">−</button><button class="window-btn" data-cmd="maximize" aria-label="Maximieren">□</button><button class="window-btn close" data-cmd="close" aria-label="Schließen">×</button></div></div>
+<script>
+const send=cmd=>{try{if(window.ipc?.postMessage)window.ipc.postMessage(cmd);else if(window.chrome?.webview)window.chrome.webview.postMessage(cmd)}catch(e){}};
+document.querySelectorAll('[data-cmd]').forEach(b=>b.onclick=()=>send('window:'+b.dataset.cmd));
+document.getElementById('bar').ondblclick=e=>{if(e.target.closest('.controls'))return;send('window:maximize')};
+document.getElementById('bar').onmousedown=e=>{if(e.button===0&&!e.target.closest('.controls'))send('window:drag')};
+</script></body></html>

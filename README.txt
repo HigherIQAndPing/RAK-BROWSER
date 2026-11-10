@@ -84,10 +84,21 @@ laedt keine externe Webseite. Die Home-Schaltflaeche oben oeffnet sie jederzeit
 wieder. Startseiten-Tabs werden wie Verlauf, Lesezeichen und Einstellungen als
 interne Browser-Seiten behandelt.
 
+FENSTERLEISTE
+-------------
+RAK verwendet eine eigene, schmale Leiste ganz oben anstelle der nativen
+Titelleiste. Links stehen das RAK-Zeichen und der Name, rechts liegen
+Minimieren, Maximieren/Wiederherstellen und Schliessen. Der freie Bereich ist
+ziehbar, ein Doppelklick darauf schaltet zwischen maximiert und normal um. Die
+gesamte Browseroberflaeche passt sich beim Verkleinern und Maximieren an; die
+Startseite wechselt dabei ihr Raster automatisch von vier auf zwei Spalten.
+
 Tastenkuerzel, solange die Browser-Oberflaeche oder Adressleiste den Fokus hat:
 Strg+T neuer Tab, Strg+Umschalt+N privater Tab, Strg+W aktiven Tab schliessen,
 Strg+Tab / Strg+Umschalt+Tab wechseln, Alt+T neuer Tab in der aktiven Insel.
-Wenn die Webseite selbst den Fokus hat, gelten deren eigene Tastenbefehle.
+Die Browseroberflaeche verarbeitet Strg+T und Strg+W auch bei fokussierter
+Adressleiste. Wenn die Webseite selbst den Fokus hat, gelten deren eigene
+Tastenbefehle.
 
 WEITERE FUNKTIONEN
 ------------------
