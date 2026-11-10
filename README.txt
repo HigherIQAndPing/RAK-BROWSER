@@ -199,3 +199,11 @@ Repository-/Organisationsregeln muessen Actions und Release-Schreibzugriff
 zulassen; private Repositorys benoetigen verfuegbare Actions-Minuten.
 Releases erben die private Repository-Sichtbarkeit. Der Workflow aendert diese
 nicht und enthaelt keine geplanten Dienste oder wiederkehrenden Aufgaben.
+
+HOMESCREEN-DESIGN
+-----------------
+Der Homescreen-Header mit RAK-Logo und Startseite ist zentriert und skaliert
+mit dem Fenster. Das Logo nutzt einen farbigen, modernen Verlauf. Die
+Schnellzugriff-Icons stehen mittig in ihren Karten, sind groesser und skalieren
+proportional mit Breite und Hoehe. Auch der Platzhalter "Suchen oder Adresse
+eingeben" passt seine Schriftgroesse an die Fensterhoehe an.
