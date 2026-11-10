@@ -1098,7 +1098,7 @@ fn main() -> wry::Result<()> {
     let proxy = event_loop.create_proxy();
 
     let window = WindowBuilder::new()
-        .with_title("RAK \u{2013} Render Accelerated Kinetic")
+        .with_title("RAK")
         .with_inner_size(tao::dpi::LogicalSize::new(1280.0, 800.0))
         .build(&event_loop)
         .expect("Fenster konnte nicht erstellt werden");
