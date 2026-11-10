@@ -150,6 +150,12 @@ jobs:
           * ChatGPT als KI-Assistent in die Seitenleiste aufgenommen.
           * Beide Apps sind standardmäßig aktiv und können über „Seitenleiste anpassen“ ein- oder ausgeblendet werden.
           '@
+            'v0.9.2' = @'
+          ### Diese Version
+          * Startseite auf das ruhigere, funktionale Layout von Version 0.6 zurückgesetzt.
+          * Neuer Bereich „Zuletzt geöffnet“ mit bis zu acht Einträgen aus dem lokalen Verlauf.
+          * Verlaufseinträge können direkt von der Startseite erneut geöffnet werden.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

@@ -381,7 +381,12 @@ impl State {
         for t in self.tabs.iter().filter(|t| t.kind != Kind::Web) {
             let data = match t.kind {
                 Kind::Home => {
-                    json!({ "bookmarks": self.store.bookmarks.len(), "version": env!("CARGO_PKG_VERSION") })
+                    let recent: Vec<_> = self.store.history.iter().rev().take(8).collect();
+                    json!({
+                        "bookmarks": self.store.bookmarks.len(),
+                        "version": env!("CARGO_PKG_VERSION"),
+                        "recent": recent
+                    })
                 }
                 Kind::History => self.store.history_json(),
                 Kind::Extensions => ext::data_json(),

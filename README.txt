@@ -215,4 +215,10 @@ Der Homescreen-Header mit RAK-Logo und Startseite ist zentriert und skaliert
 mit dem Fenster. Das Logo nutzt einen farbigen, modernen Verlauf. Die
 Schnellzugriff-Icons stehen mittig in ihren Karten, sind groesser und skalieren
 proportional mit Breite und Hoehe. Auch der Platzhalter "Suchen oder Adresse
-eingeben" passt seine Schriftgroesse an die Fensterhoehe an.
+eingegeben" passt seine Schriftgroesse an die Fensterhoehe an.
+
+Die Startseite wurde in Version 0.9.2 auf das ruhigere Layout aus Version 0.6
+zurueckgesetzt. Darunter zeigt der neue Bereich "Zuletzt geoeffnet" bis zu
+acht zuletzt besuchte Webadressen aus dem lokalen Verlauf. Ein Klick oeffnet
+den jeweiligen Eintrag erneut; wenn noch kein Verlauf vorhanden ist, erscheint
+ein entsprechender leerer Zustand.
