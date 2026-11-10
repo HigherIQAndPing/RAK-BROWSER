@@ -156,6 +156,11 @@ jobs:
           * Neuer Bereich „Zuletzt geöffnet“ mit bis zu acht Einträgen aus dem lokalen Verlauf.
           * Verlaufseinträge können direkt von der Startseite erneut geöffnet werden.
           '@
+            'v0.9.3' = @'
+          ### Diese Version
+          * „Zuletzt geöffnet“ wird fest in zwei Spalten und bis zu vier Zeilen dargestellt.
+          * Verlaufskarten, Icons und Texte wurden für bessere Lesbarkeit vergrößert.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

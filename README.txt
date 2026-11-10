@@ -222,3 +222,5 @@ zurueckgesetzt. Darunter zeigt der neue Bereich "Zuletzt geoeffnet" bis zu
 acht zuletzt besuchte Webadressen aus dem lokalen Verlauf. Ein Klick oeffnet
 den jeweiligen Eintrag erneut; wenn noch kein Verlauf vorhanden ist, erscheint
 ein entsprechender leerer Zustand.
+Die Einträge werden seit Version 0.9.3 fest in zwei Spalten und bis zu vier
+Zeilen dargestellt. Die Karten, Icons und Texte wurden dafür vergrößert.
