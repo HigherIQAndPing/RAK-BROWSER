@@ -74,6 +74,16 @@ Inseln und Tabs gelten fuer die aktuelle Sitzung; sie werden nicht nach einem
 Neustart wiederhergestellt. Das bestehende Limit von insgesamt 12 Tabs bleibt.
 Viele Tabs sind per Mausrad ueber der Tab-Leiste oder mit den Pfeilen erreichbar.
 
+STARTSEITE
+----------
+Beim Start und sobald der letzte Tab geschlossen wird, bleibt RAK geoeffnet und
+zeigt eine interne Startseite mit RAK-Logo, Suche, Schnellzugriffen und Buttons
+fuer neue beziehungsweise private Tabs. Die Schnellzugriffe werden als
+Navigation aus Rust an einen normalen Tab uebergeben; die Startseite selbst
+laedt keine externe Webseite. Die Home-Schaltflaeche oben oeffnet sie jederzeit
+wieder. Startseiten-Tabs werden wie Verlauf, Lesezeichen und Einstellungen als
+interne Browser-Seiten behandelt.
+
 Tastenkuerzel, solange die Browser-Oberflaeche oder Adressleiste den Fokus hat:
 Strg+T neuer Tab, Strg+Umschalt+N privater Tab, Strg+W aktiven Tab schliessen,
 Strg+Tab / Strg+Umschalt+Tab wechseln, Alt+T neuer Tab in der aktiven Insel.

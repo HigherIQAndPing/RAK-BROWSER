@@ -1,5 +1,8 @@
 // Im Release-Build unter Windows kein zusätzliches Konsolenfenster öffnen
-#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
 
 mod ext;
 mod islands;
@@ -48,7 +51,10 @@ enum UserEvent {
     Started(u32, String),
     Loaded(u32, String),
     /// Popup / target=_blank einer Webseite -> neuer Tab
-    OpenUrl { url: String, source: Option<u32> },
+    OpenUrl {
+        url: String,
+        source: Option<u32>,
+    },
     /// Ergebnis einer Erweiterungs-Installation (JSON), kommt aus einem Hintergrund-Thread
     Ext(String),
 }
@@ -56,6 +62,7 @@ enum UserEvent {
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Kind {
     Web,
+    Home,
     History,
     Bookmarks,
     Extensions,
@@ -88,7 +95,9 @@ fn percent_encode(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             b' ' => out.push('+'),
             _ => out.push_str(&format!("%{:02X}", b)),
         }
@@ -124,9 +133,11 @@ fn is_http(u: &str) -> bool {
 
 fn normalize_with_engine(input: &str, engine: &str) -> String {
     let t = input.trim();
-    if is_http(t) { t.to_string() }
-    else if t.contains('.') && !t.contains(' ') { format!("https://{t}") }
-    else {
+    if is_http(t) {
+        t.to_string()
+    } else if t.contains('.') && !t.contains(' ') {
+        format!("https://{t}")
+    } else {
         let q = percent_encode(t);
         match engine {
             "google" => format!("https://www.google.com/search?q={q}"),
@@ -147,7 +158,11 @@ fn search_home(engine: &str) -> &'static str {
 }
 
 fn translate_url(url: &str, language: &str) -> String {
-    format!("https://translate.google.com/translate?sl=auto&tl={}&u={}", percent_encode(language), percent_encode(url))
+    format!(
+        "https://translate.google.com/translate?sl=auto&tl={}&u={}",
+        percent_encode(language),
+        percent_encode(url)
+    )
 }
 
 /// Panelbreite zwischen Minimum und dem, was das Fenster hergibt
@@ -244,7 +259,14 @@ impl State {
             let _ = view.set_visible(shown);
         }
         if let Some(split) = &self.split {
-            place(&self.host, split, SIDEBAR_W + pw, UI_HEIGHT, SPLIT_W, body_h);
+            place(
+                &self.host,
+                split,
+                SIDEBAR_W + pw,
+                UI_HEIGHT,
+                SPLIT_W,
+                body_h,
+            );
             let _ = split.set_visible(self.open.is_some());
         }
         let x = self.content_x(w);
@@ -267,16 +289,31 @@ impl State {
             .iter()
             .map(|t| json!({ "id": t.id, "title": t.title, "url": t.url, "private": t.private, "island": self.islands.island_for(t.id) }))
             .collect();
-        let islands: Vec<_> = self.islands.islands.iter().map(|g| json!({
-            "id": g.id, "name": g.name, "color": g.color,
-            "collapsed": g.collapsed, "private": g.private
-        })).collect();
-        let js = format!("window.rak && window.rak.setTabs({}, {}, {});", json!(list), self.active, json!(islands));
+        let islands: Vec<_> = self
+            .islands
+            .islands
+            .iter()
+            .map(|g| {
+                json!({
+                    "id": g.id, "name": g.name, "color": g.color,
+                    "collapsed": g.collapsed, "private": g.private
+                })
+            })
+            .collect();
+        let js = format!(
+            "window.rak && window.rak.setTabs({}, {}, {});",
+            json!(list),
+            self.active,
+            json!(islands)
+        );
         let _ = self.ui.evaluate_script(&js);
     }
 
     fn push_bookmarks(&self) {
-        let js = format!("window.rak && window.rak.setBookmarks({});", self.store.bookmarks_json());
+        let js = format!(
+            "window.rak && window.rak.setBookmarks({});",
+            self.store.bookmarks_json()
+        );
         let _ = self.ui.evaluate_script(&js);
     }
 
@@ -285,15 +322,22 @@ impl State {
             .iter()
             .map(|(id, _)| json!({ "id": id, "enabled": self.store.settings.sidebar.iter().any(|s| s == id) }))
             .collect();
-        let js = format!("window.side && window.side.setState({});", json!({ "apps": apps, "open": self.open, "colors": self.store.settings.colors }));
+        let js = format!(
+            "window.side && window.side.setState({});",
+            json!({ "apps": apps, "open": self.open, "colors": self.store.settings.colors })
+        );
         let _ = self.side.evaluate_script(&js);
     }
 
     fn push_settings(&self) {
         let data = json!({ "settings": self.store.settings });
-        let _ = self.ui.evaluate_script(&format!("window.rak && window.rak.setSettings({});", data));
+        let _ = self
+            .ui
+            .evaluate_script(&format!("window.rak && window.rak.setSettings({});", data));
         for t in self.tabs.iter().filter(|t| t.kind == Kind::Settings) {
-            let _ = t.view.evaluate_script(&format!("window.setData({});", data));
+            let _ = t
+                .view
+                .evaluate_script(&format!("window.setData({});", data));
         }
         self.push_side();
     }
@@ -301,18 +345,29 @@ impl State {
     fn push_internal(&self) {
         for t in self.tabs.iter().filter(|t| t.kind != Kind::Web) {
             let data = match t.kind {
+                Kind::Home => {
+                    json!({ "bookmarks": self.store.bookmarks.len(), "version": env!("CARGO_PKG_VERSION") })
+                }
                 Kind::History => self.store.history_json(),
                 Kind::Extensions => ext::data_json(),
                 Kind::Settings => json!({ "settings": self.store.settings }),
                 _ => self.store.bookmarks_json(),
             };
-            let _ = t.view.evaluate_script(&format!("window.setData({});", data));
+            let _ = t
+                .view
+                .evaluate_script(&format!("window.setData({});", data));
         }
     }
 
     // ---------- Tabs ----------
 
-    fn make_web_tab(&self, window: &Window, id: u32, url: &str, private: bool) -> wry::Result<WebView> {
+    fn make_web_tab(
+        &self,
+        window: &Window,
+        id: u32,
+        url: &str,
+        private: bool,
+    ) -> wry::Result<WebView> {
         let (w, h) = window_size(window);
         let x = self.content_x(w);
         let p_title = self.proxy.clone();
@@ -334,7 +389,10 @@ impl State {
                 let _ = p_load.send_event(e);
             })
             .with_new_window_req_handler(move |u| {
-                let _ = p_new.send_event(UserEvent::OpenUrl { url: u, source: Some(id) });
+                let _ = p_new.send_event(UserEvent::OpenUrl {
+                    url: u,
+                    source: Some(id),
+                });
                 false // kein eigenes Fenster, die Adresse öffnet in einem neuen Tab
             });
         // Bewusst KEIN ipc-Handler: Webseiten dürfen den Browser nicht steuern.
@@ -346,9 +404,13 @@ impl State {
         let (w, h) = window_size(window);
         let x = self.content_x(w);
         let html = match kind {
+            Kind::Home => include_str!("home.html").to_string(),
             Kind::History => self.store.history_page(),
             Kind::Extensions => ext::page(),
-            Kind::Settings => include_str!("settings.html").replace("__DATA__", &store::script_safe(&json!({ "settings": self.store.settings }))),
+            Kind::Settings => include_str!("settings.html").replace(
+                "__DATA__",
+                &store::script_safe(&json!({ "settings": self.store.settings })),
+            ),
             _ => self.store.bookmarks_page(),
         };
         let p_ipc = self.proxy.clone();
@@ -362,7 +424,10 @@ impl State {
             // Eine interne Seite darf nie zu einer Webseite werden (sonst hätte diese IPC-Zugriff)
             .with_navigation_handler(move |u| {
                 if is_http(&u) {
-                    let _ = p_nav.send_event(UserEvent::OpenUrl { url: u, source: None });
+                    let _ = p_nav.send_event(UserEvent::OpenUrl {
+                        url: u,
+                        source: None,
+                    });
                     false
                 } else {
                     true
@@ -377,7 +442,14 @@ impl State {
         }
         let id = self.next_id;
         if let Ok(view) = self.make_web_tab(window, id, url, private) {
-            self.tabs.push(Tab { id, title: String::new(), url: url.to_string(), view, private, kind: Kind::Web });
+            self.tabs.push(Tab {
+                id,
+                title: String::new(),
+                url: url.to_string(),
+                view,
+                private,
+                kind: Kind::Web,
+            });
             self.next_id += 1;
             self.active = id;
             self.show_only();
@@ -414,9 +486,15 @@ impl State {
     }
 
     fn new_island_tab(&mut self, window: &Window, island: u32) {
-        let Some(private) = self.islands.get(island).map(|g| g.private) else { return; };
+        let Some(private) = self.islands.get(island).map(|g| g.private) else {
+            return;
+        };
         let id = self.next_id;
-        self.new_web_tab(window, search_home(&self.store.settings.search_engine), private);
+        self.new_web_tab(
+            window,
+            search_home(&self.store.settings.search_engine),
+            private,
+        );
         if self.tabs.iter().any(|t| t.id == id) {
             self.islands.add(island, &[id], &self.tab_metadata());
             self.islands.expand_tab(id);
@@ -425,11 +503,19 @@ impl State {
     }
 
     /// Auch beim Gruppenschließen bleiben sichtbare Seite und aktiver Tab konsistent.
-    fn close_tabs(&mut self, ids: &[u32]) -> bool {
-        let old_index = self.tabs.iter().position(|t| t.id == self.active).unwrap_or(0);
+    fn close_tabs(&mut self, window: &Window, ids: &[u32]) -> bool {
+        let old_index = self
+            .tabs
+            .iter()
+            .position(|t| t.id == self.active)
+            .unwrap_or(0);
         self.tabs.retain(|t| !ids.contains(&t.id));
         self.islands.remove(ids);
-        if self.tabs.is_empty() { return true; }
+        // Der Browser bleibt bei null Tabs geöffnet und zeigt die interne Startseite.
+        if self.tabs.is_empty() {
+            self.open_internal(window, Kind::Home);
+            return false;
+        }
         if !self.tabs.iter().any(|t| t.id == self.active) {
             self.active = self.tabs[old_index.min(self.tabs.len() - 1)].id;
             self.islands.expand_tab(self.active);
@@ -453,12 +539,20 @@ impl State {
         let id = self.next_id;
         if let Ok(view) = self.make_internal(window, kind) {
             let (title, url) = match kind {
+                Kind::Home => ("RAK Startseite", "rak://start"),
                 Kind::History => ("Verlauf", "rak://verlauf"),
                 Kind::Extensions => ("Erweiterungen", "rak://erweiterungen"),
                 Kind::Settings => ("Einstellungen", "rak://einstellungen"),
                 _ => ("Lesezeichen", "rak://lesezeichen"),
             };
-            self.tabs.push(Tab { id, title: title.into(), url: url.into(), view, private: false, kind });
+            self.tabs.push(Tab {
+                id,
+                title: title.into(),
+                url: url.into(),
+                view,
+                private: false,
+                kind,
+            });
             self.next_id += 1;
             self.active = id;
             self.show_only();
@@ -469,7 +563,9 @@ impl State {
     /// Lädt eine Adresse im aktiven Tab. Ist der aktive Tab eine interne Seite, wird seine
     /// WebView durch eine frische ersetzt, damit die Webseite keinen IPC-Zugang erbt.
     fn navigate_active(&mut self, window: &Window, url: &str) {
-        let Some(idx) = self.tabs.iter().position(|t| t.id == self.active) else { return };
+        let Some(idx) = self.tabs.iter().position(|t| t.id == self.active) else {
+            return;
+        };
         if self.tabs[idx].kind == Kind::Web {
             self.tabs[idx].url = url.to_string();
             let _ = self.tabs[idx].view.load_url(url);
@@ -506,7 +602,9 @@ impl State {
     }
 
     fn toggle_app(&mut self, window: &Window, app: &str) {
-        let Some((_, url)) = APPS.iter().find(|(id, _)| *id == app) else { return };
+        let Some((_, url)) = APPS.iter().find(|(id, _)| *id == app) else {
+            return;
+        };
         if !self.store.settings.sidebar.iter().any(|s| s == app) {
             return;
         }
@@ -516,7 +614,12 @@ impl State {
             if !self.panels.contains_key(app) {
                 let (w, h) = window_size(window);
                 let b = new_builder()
-                    .with_bounds(rect(SIDEBAR_W, UI_HEIGHT, clamp_width(self.panel_w, w), h - UI_HEIGHT))
+                    .with_bounds(rect(
+                        SIDEBAR_W,
+                        UI_HEIGHT,
+                        clamp_width(self.panel_w, w),
+                        h - UI_HEIGHT,
+                    ))
                     .with_url(*url);
                 if let Ok(v) = attach(b, window, &self.host) {
                     self.panels.insert(app.to_string(), v);
@@ -539,7 +642,11 @@ impl State {
         list.retain(|s| s != app);
         if enabled {
             list.push(app.to_string());
-            list.sort_by_key(|s| APPS.iter().position(|(id, _)| id == s).unwrap_or(usize::MAX));
+            list.sort_by_key(|s| {
+                APPS.iter()
+                    .position(|(id, _)| id == s)
+                    .unwrap_or(usize::MAX)
+            });
         } else {
             // Entfernt = Panel schließen und die Seite beenden (Musik stoppt, Speicher wird frei)
             if self.open.as_deref() == Some(app) {
@@ -568,7 +675,11 @@ impl State {
     fn handle(&mut self, window: &Window, ev: UserEvent) -> bool {
         match ev {
             UserEvent::Title(id, title) => {
-                if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id && t.kind == Kind::Web) {
+                if let Some(t) = self
+                    .tabs
+                    .iter_mut()
+                    .find(|t| t.id == id && t.kind == Kind::Web)
+                {
                     t.title = title.clone();
                     if !t.private && is_http(&t.url) {
                         let url = t.url.clone();
@@ -577,13 +688,18 @@ impl State {
                 }
             }
             UserEvent::Started(id, url) => {
-                if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id && t.kind == Kind::Web) {
+                if let Some(t) = self
+                    .tabs
+                    .iter_mut()
+                    .find(|t| t.id == id && t.kind == Kind::Web)
+                {
                     t.url = url;
                     t.title.clear();
                 }
             }
             UserEvent::Loaded(id, url) => {
-                if self.store.settings.auto_translate && is_http(&url)
+                if self.store.settings.auto_translate
+                    && is_http(&url)
                     && !url.starts_with("https://translate.google.com/")
                     && !url.starts_with("http://translate.google.com/")
                 {
@@ -592,7 +708,11 @@ impl State {
                         let _ = t.view.load_url(&translated);
                     }
                 }
-                if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id && t.kind == Kind::Web) {
+                if let Some(t) = self
+                    .tabs
+                    .iter_mut()
+                    .find(|t| t.id == id && t.kind == Kind::Web)
+                {
                     t.url = url.clone();
                     // Private Tabs kommen nie in den Verlauf
                     if !t.private && is_http(&url) {
@@ -631,8 +751,16 @@ impl State {
                 self.push_side();
                 self.push_settings();
             }
-            "new" => self.new_web_tab(window, search_home(&self.store.settings.search_engine), false),
-            "newp" => self.new_web_tab(window, search_home(&self.store.settings.search_engine), true),
+            "new" => self.new_web_tab(
+                window,
+                search_home(&self.store.settings.search_engine),
+                false,
+            ),
+            "newp" => self.new_web_tab(
+                window,
+                search_home(&self.store.settings.search_engine),
+                true,
+            ),
             "switch" => {
                 if let Ok(id) = arg.parse::<u32>() {
                     if self.tabs.iter().any(|t| t.id == id) {
@@ -645,21 +773,28 @@ impl State {
             }
             "close" => {
                 if let Ok(id) = arg.parse::<u32>() {
-                    if self.close_tabs(&[id]) {
+                    if self.close_tabs(window, &[id]) {
                         return true;
                     }
                 }
             }
             "island-create" | "island-add" | "island-remove" => {
                 if let Ok(v) = serde_json::from_str::<Value>(arg) {
-                    let ids: Vec<u32> = v["tabs"].as_array().into_iter().flatten()
+                    let ids: Vec<u32> = v["tabs"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
                         .filter_map(|id| id.as_u64().and_then(|id| u32::try_from(id).ok()))
                         .collect();
                     let tabs = self.tab_metadata();
                     match cmd {
-                        "island-create" => { self.islands.create(&ids, &tabs); }
+                        "island-create" => {
+                            self.islands.create(&ids, &tabs);
+                        }
                         "island-add" => {
-                            if let Some(id) = v["island"].as_u64().and_then(|id| u32::try_from(id).ok()) {
+                            if let Some(id) =
+                                v["island"].as_u64().and_then(|id| u32::try_from(id).ok())
+                            {
                                 self.islands.add(id, &ids, &tabs);
                             }
                         }
@@ -676,7 +811,9 @@ impl State {
                         "island-new" => self.new_island_tab(window, id),
                         _ => {
                             let members = self.islands.members(id);
-                            if self.close_tabs(&members) { return true; }
+                            if self.close_tabs(window, &members) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -684,11 +821,16 @@ impl State {
             "island-rename" => {
                 if let Ok(v) = serde_json::from_str::<Value>(arg) {
                     if let Some(id) = v["id"].as_u64().and_then(|id| u32::try_from(id).ok()) {
-                        self.islands.rename(id, v["name"].as_str().unwrap_or(""), v["color"].as_str().unwrap_or(""));
+                        self.islands.rename(
+                            id,
+                            v["name"].as_str().unwrap_or(""),
+                            v["color"].as_str().unwrap_or(""),
+                        );
                     }
                 }
             }
             "nav" => match arg.trim() {
+                "rak://start" => self.open_internal(window, Kind::Home),
                 "rak://verlauf" => self.open_internal(window, Kind::History),
                 "rak://lesezeichen" => self.open_internal(window, Kind::Bookmarks),
                 "rak://erweiterungen" => self.open_internal(window, Kind::Extensions),
@@ -698,10 +840,13 @@ impl State {
                     self.navigate_active(window, &url);
                 }
             },
-            "home" => self.navigate_active(window, search_home(&self.store.settings.search_engine)),
+            "home" => self.open_internal(window, Kind::Home),
             "settings" => self.open_internal(window, Kind::Settings),
             "translate" => {
-                if let Some(url) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web)
+                if let Some(url) = self
+                    .tabs
+                    .iter()
+                    .find(|t| t.id == self.active && t.kind == Kind::Web)
                     .map(|t| t.url.clone())
                     .filter(|u| is_http(u) && !u.starts_with("https://translate.google.com/"))
                 {
@@ -715,7 +860,11 @@ impl State {
                     "fwd" => "history.forward()",
                     _ => "location.reload()",
                 };
-                if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) {
+                if let Some(t) = self
+                    .tabs
+                    .iter()
+                    .find(|t| t.id == self.active && t.kind == Kind::Web)
+                {
                     let _ = t.view.evaluate_script(js);
                 }
             }
@@ -813,7 +962,10 @@ impl State {
                 ("text", &mut self.store.settings.colors.text),
             ] {
                 if let Some(color) = colors.get(key).and_then(Value::as_str) {
-                    if color.len() == 7 && color.starts_with('#') && color[1..].bytes().all(|b| b.is_ascii_hexdigit()) {
+                    if color.len() == 7
+                        && color.starts_with('#')
+                        && color[1..].bytes().all(|b| b.is_ascii_hexdigit())
+                    {
                         *slot = color.to_ascii_lowercase();
                     }
                 }
@@ -826,7 +978,9 @@ impl State {
     /// Nachrichten der internen Seiten (JSON)
     /// Gibt true zurück, wenn das Programm beendet werden soll (Neustart).
     fn page_message(&mut self, window: &Window, msg: &str) -> bool {
-        let Ok(v) = serde_json::from_str::<Value>(msg) else { return false };
+        let Ok(v) = serde_json::from_str::<Value>(msg) else {
+            return false;
+        };
         let id = v["id"].as_u64().map(|x| x as u32);
         match v["t"].as_str() {
             Some("settings_save") => {
@@ -838,6 +992,26 @@ impl State {
                     self.new_web_tab(window, u, false);
                 }
             }
+            Some("home_open") => {
+                if let Some(input) = v["url"].as_str().filter(|u| !u.trim().is_empty()) {
+                    let url = normalize_with_engine(input, &self.store.settings.search_engine);
+                    self.navigate_active(window, &url);
+                }
+            }
+            Some("home_command") => match v["command"].as_str() {
+                Some("new") => self.new_web_tab(
+                    window,
+                    search_home(&self.store.settings.search_engine),
+                    false,
+                ),
+                Some("newp") => self.new_web_tab(
+                    window,
+                    search_home(&self.store.settings.search_engine),
+                    true,
+                ),
+                Some("settings") => self.open_internal(window, Kind::Settings),
+                _ => {}
+            },
             Some("hist_del") => {
                 if let (Some(ts), Some(url)) = (v["ts"].as_u64(), v["url"].as_str()) {
                     self.store.delete_history_entry(ts, url);
@@ -846,7 +1020,8 @@ impl State {
             Some("hist_clear") => self.store.clear_history(),
             Some("bm_move") => {
                 if let Some(id) = id {
-                    self.store.move_bookmark(id, v["folder"].as_u64().map(|f| f as u32));
+                    self.store
+                        .move_bookmark(id, v["folder"].as_u64().map(|f| f as u32));
                 }
             }
             Some("bm_del") => {
@@ -857,7 +1032,8 @@ impl State {
             Some("folder_add") => self.store.add_folder(v["name"].as_str().unwrap_or("")),
             Some("folder_ren") => {
                 if let Some(id) = id {
-                    self.store.rename_folder(id, v["name"].as_str().unwrap_or(""));
+                    self.store
+                        .rename_folder(id, v["name"].as_str().unwrap_or(""));
                 }
             }
             Some("folder_del") => {
@@ -873,7 +1049,9 @@ impl State {
                     let input = input.to_string();
                     std::thread::spawn(move || {
                         let j = match ext::install(&input) {
-                            Ok(i) => json!({ "ok": true, "name": i.name, "version": i.version, "id": i.id }),
+                            Ok(i) => {
+                                json!({ "ok": true, "name": i.name, "version": i.version, "id": i.id })
+                            }
                             Err(e) => json!({ "ok": false, "error": e }),
                         };
                         let _ = p.send_event(UserEvent::Ext(j.to_string()));
@@ -907,7 +1085,9 @@ impl State {
     /// Meldet das Ergebnis einer Installation an die Erweiterungsseite und aktualisiert die Liste
     fn ext_result(&self, json: &str) {
         for t in self.tabs.iter().filter(|t| t.kind == Kind::Extensions) {
-            let _ = t.view.evaluate_script(&format!("window.extResult && window.extResult({});", json));
+            let _ = t
+                .view
+                .evaluate_script(&format!("window.extResult && window.extResult({});", json));
         }
         self.push_internal();
     }
@@ -975,16 +1155,21 @@ fn main() -> wry::Result<()> {
         active: 0,
         store,
     };
-    let start_url = search_home(&st.store.settings.search_engine);
-    st.new_web_tab(&window, start_url, false);
+    st.open_internal(&window, Kind::Home);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
-            Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
                 *control_flow = ControlFlow::Exit;
             }
-            Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
+            Event::WindowEvent {
+                event: WindowEvent::Resized(_),
+                ..
+            } => {
                 st.layout(&window);
             }
             Event::UserEvent(ev) => {
