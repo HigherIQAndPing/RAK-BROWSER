@@ -323,6 +323,17 @@ impl State {
     // ---------- Daten an die Oberfläche schicken ----------
 
     fn push_tabs(&self) {
+        // Offene normale Tabs für den nächsten Start merken (private Tabs nie)
+        {
+            let saved: Vec<&Tab> = self
+                .tabs
+                .iter()
+                .filter(|t| t.kind == Kind::Web && !t.private && (t.url.starts_with("http://") || t.url.starts_with("https://")))
+                .collect();
+            let urls: Vec<String> = saved.iter().map(|t| t.url.clone()).collect();
+            let active = saved.iter().position(|t| t.id == self.active).unwrap_or(0);
+            store::save_session(&urls, active);
+        }
         let list: Vec<_> = self
             .tabs
             .iter()
@@ -1322,7 +1333,23 @@ fn main() -> wry::Result<()> {
         store,
         update_ready: None,
     };
-    st.open_internal(&window, Kind::Home);
+    // Tabs der letzten Sitzung wiederherstellen, sonst Startseite
+    let (urls, active) = store::load_session();
+    if urls.is_empty() {
+        st.open_internal(&window, Kind::Home);
+    } else {
+        for u in &urls {
+            st.new_web_tab(&window, u, false);
+        }
+        if let Some(t) = st.tabs.get(active) {
+            st.active = t.id;
+            st.show_only();
+            st.layout(&window);
+        }
+        if st.tabs.is_empty() {
+            st.open_internal(&window, Kind::Home);
+        }
+    }
 
     let mut modifiers = ModifiersState::default();
     event_loop.run(move |event, _, control_flow| {

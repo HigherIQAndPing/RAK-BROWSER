@@ -118,6 +118,49 @@ pub fn data_dir() -> PathBuf {
     dir
 }
 
+// ---------- Sitzung (offene Tabs) ----------
+
+#[derive(Serialize, Deserialize, Default)]
+struct SessionFile {
+    urls: Vec<String>,
+    active: usize,
+}
+
+fn session_path() -> PathBuf {
+    data_dir().join("session.json")
+}
+
+fn save_session_to(path: &std::path::Path, urls: &[String], active: usize, last: &mut String) {
+    let body = serde_json::to_string(&SessionFile { urls: urls.to_vec(), active }).unwrap_or_default();
+    if body.is_empty() || *last == body {
+        return; // unverändert: nicht neu schreiben
+    }
+    let tmp = path.with_extension("tmp");
+    if fs::write(&tmp, &body).is_ok() && fs::rename(&tmp, path).is_ok() {
+        *last = body;
+    }
+}
+
+fn load_session_from(path: &std::path::Path) -> (Vec<String>, usize) {
+    let f: SessionFile = fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let urls: Vec<String> = f.urls.into_iter().filter(|u| u.starts_with("http://") || u.starts_with("https://")).collect();
+    let active = f.active.min(urls.len().saturating_sub(1));
+    (urls, active)
+}
+
+/// Merkt sich die offenen normalen Tabs (private Tabs werden NIE gespeichert).
+pub fn save_session(urls: &[String], active: usize) {
+    use std::sync::Mutex;
+    static LAST: Mutex<String> = Mutex::new(String::new());
+    if let Ok(mut last) = LAST.lock() {
+        save_session_to(&session_path(), urls, active, &mut last);
+    }
+}
+
+pub fn load_session() -> (Vec<String>, usize) {
+    load_session_from(&session_path())
+}
+
 impl Store {
     pub fn load() -> Self {
         let dir = data_dir();
@@ -315,5 +358,28 @@ impl Store {
 
     pub fn bookmarks_page(&self) -> String {
         include_str!("bookmarks.html").replace("__DATA__", &script_safe(&self.bookmarks_json()))
+    }
+}
+
+#[cfg(test)]
+mod session_tests {
+    use super::*;
+
+    #[test]
+    fn session_roundtrip_and_filter() {
+        let dir = std::env::temp_dir().join(format!("rak-sess-{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        let p = dir.join("session.json");
+        let mut last = String::new();
+        let urls = vec!["https://a.de/".to_string(), "http://b.de/x".to_string()];
+        save_session_to(&p, &urls, 1, &mut last);
+        assert_eq!(load_session_from(&p), (urls.clone(), 1));
+        // fremde Schemata werden beim Laden verworfen, Index wird begrenzt
+        fs::write(&p, r#"{"urls":["javascript:alert(1)","file:///etc/passwd","https://c.de/"],"active":9}"#).unwrap();
+        assert_eq!(load_session_from(&p), (vec!["https://c.de/".to_string()], 0));
+        // kaputte Datei -> leer
+        fs::write(&p, "kaputt").unwrap();
+        assert_eq!(load_session_from(&p), (vec![], 0));
+        let _ = fs::remove_dir_all(&dir);
     }
 }
