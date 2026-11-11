@@ -61,6 +61,54 @@ const GLOBAL_SHORTCUT_SCRIPT: &str = r#"
 })();
 "#;
 
+const CONTEXT_MENU_SCRIPT: &str = r#"
+(function () {
+  if (window.__rakContextMenuInstalled) return;
+  window.__rakContextMenuInstalled = true;
+  const post = (message) => {
+    try { if (window.ipc && window.ipc.postMessage) window.ipc.postMessage(message); } catch (_) {}
+  };
+  const copyText = async (text) => {
+    try { await navigator.clipboard.writeText(text); } catch (_) {
+      const input = document.createElement('textarea'); input.value = text; input.style.position = 'fixed'; input.style.opacity = '0';
+      document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove();
+    }
+  };
+  let menu = null;
+  const close = () => { if (menu) { menu.remove(); menu = null; } };
+  const show = (event, url, image) => {
+    close(); event.preventDefault(); event.stopPropagation();
+    menu = document.createElement('div'); menu.style.cssText = 'position:fixed;z-index:2147483647;min-width:205px;padding:5px;background:#171a20;color:#e7eaf0;border:1px solid #3a4650;border-radius:8px;box-shadow:0 8px 24px #0009;font:13px Segoe UI,system-ui,sans-serif';
+    const add = (label, action) => { const b=document.createElement('button'); b.textContent=label; b.style.cssText='display:block;width:100%;padding:9px 12px;border:0;border-radius:5px;background:transparent;color:inherit;text-align:left;cursor:pointer'; b.onmouseenter=()=>b.style.background='#26333b'; b.onmouseleave=()=>b.style.background='transparent'; b.onclick=()=>{action();close()}; menu.appendChild(b); };
+    if (image) {
+      add('Bildadresse kopieren', () => copyText(url));
+      add('Bild in neuem Tab öffnen', () => post('context-open:' + encodeURIComponent(url)));
+    } else {
+      add('Link kopieren', () => copyText(url));
+      add('Link in neuem Tab öffnen', () => post('context-open:' + encodeURIComponent(url)));
+    }
+    document.body.appendChild(menu);
+    const x=Math.min(event.clientX, innerWidth-menu.offsetWidth-8), y=Math.min(event.clientY, innerHeight-menu.offsetHeight-8); menu.style.left=Math.max(8,x)+'px'; menu.style.top=Math.max(8,y)+'px';
+  };
+  document.addEventListener('contextmenu', (event) => {
+    const image = event.target.closest && event.target.closest('img[src]');
+    const link = event.target.closest && event.target.closest('a[href], [data-url]');
+    const node = image || link; if (!node) return;
+    const raw = image ? image.currentSrc || image.src : (node.href || node.dataset.url);
+    if (!/^https?:\\/\\//i.test(raw || '')) return;
+    show(event, raw, !!image);
+  }, true);
+  document.addEventListener('auxclick', (event) => {
+    if (event.button !== 1) return;
+    const node = event.target.closest && event.target.closest('a[href], [data-url]');
+    const raw = node && (node.href || node.dataset.url);
+    if (/^https?:\\/\\//i.test(raw || '')) { event.preventDefault(); post('context-open:' + encodeURIComponent(raw)); }
+  }, true);
+  document.addEventListener('mousedown', (event) => { if (menu && !menu.contains(event.target)) close(); }, true);
+  window.addEventListener('blur', close);
+})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
@@ -355,7 +403,7 @@ impl State {
         let list: Vec<_> = self
             .tabs
             .iter()
-            .map(|t| json!({ "id": t.id, "title": t.title, "url": t.url, "private": t.private, "island": self.islands.island_for(t.id) }))
+            .map(|t| json!({ "id": t.id, "title": t.title, "url": t.url, "private": t.private, "kind": if t.kind == Kind::Home { "home" } else { "web" }, "island": self.islands.island_for(t.id) }))
             .collect();
         let islands: Vec<_> = self
             .islands
@@ -451,6 +499,7 @@ impl State {
             .with_bounds(rect(x, UI_HEIGHT, w - x, h - UI_HEIGHT))
             .with_url(url)
             .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
+            .with_initialization_script(CONTEXT_MENU_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -472,7 +521,8 @@ impl State {
             })
             .with_ipc_handler(move |req| {
                 let body = req.body();
-                if body == "shortcut:f11"
+                if body.starts_with("context-open:")
+                    || body == "shortcut:f11"
                     || body == "shortcut:ctrl-t"
                     || body == "shortcut:ctrl-w"
                     || body == "shortcut:ctrl-shift-n"
@@ -504,9 +554,10 @@ impl State {
             .with_bounds(rect(x, UI_HEIGHT, w - x, h - UI_HEIGHT))
             .with_html(html)
             .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
+            .with_initialization_script(CONTEXT_MENU_SCRIPT)
             .with_ipc_handler(move |req| {
                 let body = req.body();
-                if body.starts_with("shortcut:") {
+                if body.starts_with("shortcut:") || body.starts_with("context-open:") {
                     let _ = p_ipc.send_event(UserEvent::Ipc(body.to_string()));
                 } else {
                     let _ = p_ipc.send_event(UserEvent::Page(body.to_string()));
@@ -595,18 +646,25 @@ impl State {
 
     /// Auch beim Gruppenschließen bleiben sichtbare Seite und aktiver Tab konsistent.
     fn close_tabs(&mut self, window: &Window, ids: &[u32]) -> bool {
+        let ids: Vec<u32> = ids.iter().copied().filter(|id| {
+            self.tabs.iter().find(|t| t.id == *id).map_or(true, |t| t.kind != Kind::Home)
+        }).collect();
+        if ids.is_empty() {
+            return false;
+        }
         let old_index = self
             .tabs
             .iter()
             .position(|t| t.id == self.active)
             .unwrap_or(0);
         self.tabs.retain(|t| !ids.contains(&t.id));
-        self.islands.remove(ids);
+        self.islands.remove(&ids);
         // Der Browser bleibt bei null Tabs geöffnet und zeigt die interne Startseite.
         if self.tabs.is_empty() {
             self.open_internal(window, Kind::Home);
             return false;
         }
+        self.tabs.sort_by_key(|t| if t.kind == Kind::Home { 0 } else { 1 });
         if !self.tabs.iter().any(|t| t.id == self.active) {
             self.active = self.tabs[old_index.min(self.tabs.len() - 1)].id;
             self.islands.expand_tab(self.active);
@@ -850,6 +908,13 @@ impl State {
     fn ipc(&mut self, window: &Window, msg: &str) -> bool {
         let (cmd, arg) = msg.split_once(':').unwrap_or((msg, ""));
         match cmd {
+            "context-open" => {
+                if let Ok(url) = urlencoding::decode(arg) {
+                    if is_http(&url) {
+                        self.new_web_tab(window, &url, false);
+                    }
+                }
+            }
             "window" => match arg {
                 "minimize" => window.set_minimized(true),
                 "maximize" => {
@@ -981,7 +1046,11 @@ impl State {
                 "rak://einstellungen" => self.open_internal(window, Kind::Settings),
                 other => {
                     let url = normalize_with_engine(other, &self.store.settings.search_engine);
-                    self.navigate_active(window, &url);
+                    if self.tabs.iter().any(|t| t.id == self.active && t.kind == Kind::Home) {
+                        self.new_web_tab(window, &url, false);
+                    } else {
+                        self.navigate_active(window, &url);
+                    }
                 }
             },
             "home" => self.open_internal(window, Kind::Home),
@@ -1139,7 +1208,7 @@ impl State {
             Some("home_open") => {
                 if let Some(input) = v["url"].as_str().filter(|u| !u.trim().is_empty()) {
                     let url = normalize_with_engine(input, &self.store.settings.search_engine);
-                    self.navigate_active(window, &url);
+                    self.new_web_tab(window, &url, false);
                 }
             }
             Some("home_command") => match v["command"].as_str() {

@@ -28,6 +28,10 @@
   .tab .title { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tab .x { flex:none; width:20px; height:20px; border:0; background:transparent; color:inherit; font-size:15px; text-align:center; border-radius:50%; cursor:pointer; }
   .tab .x:hover { background:var(--accent); color:#0d0d12; }
+  .tab.home-tab { width:38px; min-width:38px; justify-content:center; padding:0; color:var(--accent); background:var(--panel); }
+  .tab.home-tab .home-mark { font-size:17px; line-height:1; }
+  .tab.home-tab .title { display:none; }
+  .tab.home-tab:hover, .tab.home-tab.active { background:var(--panel2); color:var(--accent); border-color:var(--accent); }
   .tab.private .x:hover { background:var(--priv); color:#fff; }
   .island { --island-color:#19d3ff; flex:none; display:flex; align-items:center; gap:3px; height:36px; padding:2px 3px 0; border:1px solid var(--island-color); border-bottom:3px solid var(--island-color); border-radius:9px 9px 0 0; background:var(--panel); }
   .island-members { display:flex; align-items:flex-end; gap:3px; }
@@ -311,11 +315,17 @@
     });
   }
   function makeTab(t) {
-    const tab = el("div", "tab" + (t.id === state.active ? " active" : "") + (t.private ? " private" : ""));
+    const homeTab = t.kind === "home";
+    const tab = el("div", "tab" + (homeTab ? " home-tab" : "") + (t.id === state.active ? " active" : "") + (t.private ? " private" : ""));
     tab.dataset.tab = String(t.id); tab.dataset.focus = "tab:" + t.id;
     tab.setAttribute("role", "tab"); tab.setAttribute("aria-selected", String(t.id === state.active));
     tab.setAttribute("aria-keyshortcuts", "Enter Space Delete"); tab.tabIndex = t.id === state.active ? 0 : -1;
-    tab.title = (t.title || t.url || "Neuer Tab") + "\nStrg/Klick: auswählen · Umschalt/Klick: Bereich · Rechtsklick: Tab-Inseln";
+    tab.title = homeTab ? "Startseite" : (t.title || t.url || "Neuer Tab") + "\nStrg/Klick: auswählen · Umschalt/Klick: Bereich · Rechtsklick: Tab-Inseln";
+    if (homeTab) {
+      tab.appendChild(el("span", "home-mark", "⌂"));
+      tab.onclick = () => send("home");
+      return tab;
+    }
     if (t.private) tab.appendChild(el("span", "badge", "PRIVAT"));
     tab.appendChild(el("span", "title", t.title || t.url || "Neuer Tab"));
     const x = el("button", "x", "×"); x.tabIndex = -1; x.dataset.focus = "close:" + t.id;
@@ -344,7 +354,7 @@
     const focusIsland = focusedTab ? tabById(Number(focusedTab.dataset.tab)) : null;
     tabsEl.replaceChildren();
     const rendered = new Set();
-    for (const t of state.tabs) {
+    for (const t of [...state.tabs].sort((a,b) => (a.kind === "home" ? -1 : 0) - (b.kind === "home" ? -1 : 0))) {
       const g = t.island == null ? null : islandById(t.island);
       if (!g) { tabsEl.appendChild(makeTab(t)); continue; }
       if (rendered.has(g.id)) continue;

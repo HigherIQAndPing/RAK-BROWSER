@@ -213,6 +213,12 @@ jobs:
           * „Zuletzt geöffnet“ wird fest in zwei Spalten und bis zu vier Zeilen dargestellt.
           * Verlaufskarten, Icons und Texte wurden für bessere Lesbarkeit vergrößert.
           '@
+            'v0.9.8' = @'
+          ### Diese Version
+          * Startseite bleibt dauerhaft als kleines Haus-Symbol links in der Tab-Leiste geöffnet.
+          * Mittelklick auf Links öffnet sie in einem neuen Tab – auch auf der Startseite.
+          * RAK-Kontextmenü für Links und Bilder mit Kopieren- und „In neuem Tab öffnen“-Aktionen.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

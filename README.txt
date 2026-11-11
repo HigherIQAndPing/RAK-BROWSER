@@ -240,3 +240,12 @@ SITZUNG WIEDERHERSTELLEN
 ------------------------
 Beim naechsten Start oeffnet RAK die zuletzt offenen normalen Tabs wieder (Datei session.json im
 RAK-Datenordner, %APPDATA%\RAK). Private Tabs und interne Seiten werden nie gespeichert.
+
+
+KONTEXTMENUE UND STARTSEITEN-TAB
+--------------------------------
+Version 0.9.8 hält die Startseite dauerhaft als kleines Haus-Symbol links in
+der Tab-Leiste geöffnet. Startseitenlinks erzeugen normale neue Tabs. Ein
+Mittelklick auf Links öffnet sie ebenfalls in einem neuen Tab. Rechtsklick auf
+Links und Bilder zeigt ein RAK-Menü zum Kopieren der Link- beziehungsweise
+Bildadresse und zum Öffnen in einem neuen Tab.
