@@ -231,6 +231,13 @@ jobs:
           * Zufällige Punkte werden mit Turf.js gegen lokal eingebettete Natural-Earth-Landflächen geprüft.
           * Animierter Land-Pin, Koordinatenanzeige und Suche im neuen Browser-Tab.
           '@
+            'v0.10.0' = @'
+          ### Diese Version
+          * Intelligente Omnibox mit URL-/Sucherkennung sowie bis zu fünf Vorschlägen aus Verlauf und Lesezeichen.
+          * HTTPS-/HTTP-Sicherheitsanzeige direkt neben der Adressleiste.
+          * Integrierter Werbe- und Trackerschutz mit blockierter Ressourcenanzahl und Website-spezifischer Pausefunktion.
+          * Picture-in-Picture-Schaltfläche für aktive HTML5-Videos über die native WebView-Schnittstelle.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }
