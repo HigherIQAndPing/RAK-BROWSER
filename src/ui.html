@@ -124,6 +124,7 @@
     <button class="btn" id="hist" title="Verlauf"></button>
     <button class="btn" id="bmgr" title="Lesezeichen verwalten"></button>
     <button class="btn" id="updbtn" title="">Update – Neustart</button>
+    <button class="btn" id="explore" title="Zufälliger Ort entdecken" aria-label="Zufälliger Ort entdecken"></button>
     <button class="btn" id="extbtn" title="Erweiterungen"></button>
     <button class="btn" id="translate" title="Aktuelle Seite übersetzen" aria-label="Aktuelle Seite übersetzen">文</button>
     <button class="btn" id="settings" title="Einstellungen" aria-label="Einstellungen"></button>
@@ -169,6 +170,7 @@
   document.getElementById("hist").innerHTML = ICON.hist;
   document.getElementById("bmgr").innerHTML = ICON.folder;
   document.getElementById("extbtn").innerHTML = ICON.puzzle;
+  document.getElementById("explore").innerHTML = S('<circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2l-2.1 4.4-4.4 2.1 2.1-4.4z"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2"/>');
   document.getElementById("settings").innerHTML = S('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.6v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.3v-2.6h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2H15v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v2.6h-.2a1.7 1.7 0 0 0-1.5 1z');
 
   function applyTheme(settings) {
@@ -646,6 +648,7 @@
   document.getElementById("bmgr").onclick = () => send("bmgr");
   document.getElementById("updbtn").onclick = () => send("restart");
   document.getElementById("extbtn").onclick = () => send("ext");
+  document.getElementById("explore").onclick = () => send("explore");
   document.getElementById("settings").onclick = () => send("settings");
   translateEl.onclick = () => send("translate");
   starEl.onclick = () => {

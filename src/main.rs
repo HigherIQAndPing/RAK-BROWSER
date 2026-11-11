@@ -161,6 +161,7 @@ enum Kind {
     Extensions,
     Settings,
     Passwords,
+    Explore,
 }
 
 struct Tab {
@@ -570,6 +571,7 @@ impl State {
                 &store::script_safe(&json!({ "settings": self.store.settings })),
             ),
             Kind::Passwords => include_str!("passwords.html").to_string(),
+            Kind::Explore => include_str!("explore.html").replace("__LAND_DATA__", include_str!("ne_110m_land.geojson")),
             _ => self.store.bookmarks_page(),
         };
         let p_ipc = self.proxy.clone();
@@ -717,6 +719,7 @@ impl State {
                 Kind::Extensions => ("Erweiterungen", "rak://erweiterungen"),
                 Kind::Settings => ("Einstellungen", "rak://einstellungen"),
                 Kind::Passwords => ("Passwörter", "browser://passwords"),
+                Kind::Explore => ("Explore", "browser://explore"),
                 _ => ("Lesezeichen", "rak://lesezeichen"),
             };
             self.tabs.push(Tab {
@@ -1098,6 +1101,7 @@ impl State {
                 "rak://erweiterungen" => self.open_internal(window, Kind::Extensions),
                 "rak://einstellungen" => self.open_internal(window, Kind::Settings),
                 "rak://passwoerter" | "browser://passwords" => self.open_internal(window, Kind::Passwords),
+                "browser://explore" => self.open_internal(window, Kind::Explore),
                 other => {
                     let url = normalize_with_engine(other, &self.store.settings.search_engine);
                     if self.tabs.iter().any(|t| t.id == self.active && t.kind == Kind::Home) {
@@ -1110,6 +1114,7 @@ impl State {
             "home" => self.open_internal(window, Kind::Home),
             "settings" => self.open_internal(window, Kind::Settings),
             "passwords" => self.open_internal(window, Kind::Passwords),
+            "explore" => self.open_internal(window, Kind::Explore),
             "translate" => {
                 if let Some(url) = self
                     .tabs
@@ -1258,6 +1263,14 @@ impl State {
             Some("open") => {
                 if let Some(u) = v["url"].as_str().filter(|u| is_http(u)) {
                     self.new_web_tab(window, u, false);
+                }
+            }
+            Some("explore_search") => {
+                if let (Some(lat), Some(lng)) = (v["lat"].as_f64(), v["lng"].as_f64()) {
+                    if lat.is_finite() && lng.is_finite() && (-90.0..=90.0).contains(&lat) && (-180.0..=180.0).contains(&lng) {
+                        let url = format!("https://www.google.com/maps/search/{lat:.5},{lng:.5}");
+                        self.new_web_tab(window, &url, false);
+                    }
                 }
             }
             Some("home_open") => {

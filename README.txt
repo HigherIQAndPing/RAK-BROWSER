@@ -270,3 +270,13 @@ Bewusst noch nicht simuliert werden Windows Hello/Touch ID-Dialoge und ein
 automatisches natives Banner zum Speichern nach Formular-Submit; dafür müssen
 die jeweiligen Plattform-APIs und ein verlässlicher SPA-Submit-Hook separat
 integriert und auf jeder Zielplattform getestet werden.
+
+RAK EXPLORE
+-----------
+Version 0.9.10 ergänzt rechts in der oberen Toolbar ein Kompass-Symbol. Es
+öffnet die interne Seite browser://explore mit einem interaktiven 3D-Globus.
+Bei jeder Entdeckung wird mit Turf.js ein zufälliger Punkt gegen die lokal
+eingebetteten Natural-Earth-Landpolygone geprüft; Punkte im offenen Meer werden
+verworfen. Der Globus animiert anschließend zum Landpunkt und zeigt Koordinaten,
+einen Pin sowie die Aktionen „Nächster Zufallsort“ und „Im Browser suchen“.
+Die Kartendarstellung verwendet Globe.gl und frei zugängliche Earth-Texturen.

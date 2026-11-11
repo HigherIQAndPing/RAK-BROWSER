@@ -225,6 +225,12 @@ jobs:
           * Optionales Argon2id-Master-Passwort mit Auto-Lock nach zehn Minuten.
           * browser://passwords und origin-geprüfte Autofill-Bridge für passende WebView-Origins.
           '@
+            'v0.9.10' = @'
+          ### Diese Version
+          * Neue Explore-Seite mit interaktivem 3D-Globus in der oberen Toolbar.
+          * Zufällige Punkte werden mit Turf.js gegen lokal eingebettete Natural-Earth-Landflächen geprüft.
+          * Animierter Land-Pin, Koordinatenanzeige und Suche im neuen Browser-Tab.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }
