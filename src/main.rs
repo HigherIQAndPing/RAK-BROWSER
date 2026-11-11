@@ -8,6 +8,7 @@ mod ext;
 mod islands;
 mod store;
 mod update;
+mod passwords;
 
 use islands::TabIslands;
 use serde_json::{json, Value};
@@ -109,6 +110,17 @@ const CONTEXT_MENU_SCRIPT: &str = r#"
 })();
 "#;
 
+const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
+(function(){
+  if(window.__rakPasswordBridge)return; window.__rakPasswordBridge=true;
+  const post=m=>{try{window.ipc&&window.ipc.postMessage(m)}catch(_){}};
+  const mark=()=>{document.querySelectorAll('input[type=password]').forEach(input=>{if(input.dataset.rakPw)return;input.dataset.rakPw='1';const b=document.createElement('button');b.type='button';b.textContent='🔒';b.title='RAK Passwort-Autofill';b.style.cssText='position:absolute;z-index:2147483000;border:0;background:#18242a;color:#55c7df;border-radius:5px;padding:3px 6px;cursor:pointer;';const p=input.parentElement;if(!p)return;if(getComputedStyle(p).position==='static')p.style.position='relative';p.appendChild(b);const place=()=>{b.style.right='5px';b.style.top=(input.offsetTop+Math.max(0,(input.offsetHeight-24)/2))+'px'};place();b.onclick=e=>{e.preventDefault();e.stopPropagation();post('passwords-request:'+encodeURIComponent(location.href))};});};
+  window.__rakFillCredentials=list=>{let box=document.getElementById('__rakPwChoices');if(box)box.remove();box=document.createElement('div');box.id='__rakPwChoices';box.style.cssText='position:fixed;z-index:2147483646;right:18px;top:18px;min-width:220px;padding:8px;background:#171a20;color:#e7eaf0;border:1px solid #3a4650;border-radius:8px;box-shadow:0 8px 24px #0009;font:13px Segoe UI,system-ui,sans-serif';(list||[]).forEach(x=>{const b=document.createElement('button');b.textContent=x.username+' · auswählen';b.style.cssText='display:block;width:100%;padding:9px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer';b.onclick=()=>post('passwords-fill:'+x.id+':'+encodeURIComponent(location.href));box.appendChild(b)});if(!(list||[]).length)box.textContent='Kein passender Login gespeichert.';document.body.appendChild(box);setTimeout(()=>box.remove(),15000)};
+  window.__rakFillSecret=(x)=>{const user=document.querySelector('input[type=email],input[name*=user i],input[name*=login i],input[type=text]');const pass=document.querySelector('input[type=password]');if(user){user.value=x.username;user.dispatchEvent(new Event('input',{bubbles:true}));user.dispatchEvent(new Event('change',{bubbles:true}))}if(pass){pass.value=x.password;pass.dispatchEvent(new Event('input',{bubbles:true}));pass.dispatchEvent(new Event('change',{bubbles:true}))}};
+  new MutationObserver(mark).observe(document.documentElement,{subtree:true,childList:true});mark();
+})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
@@ -148,6 +160,7 @@ enum Kind {
     Bookmarks,
     Extensions,
     Settings,
+    Passwords,
 }
 
 struct Tab {
@@ -314,6 +327,7 @@ struct State {
     next_id: u32,
     active: u32,
     store: Store,
+    passwords: passwords::Vault,
     update_ready: Option<String>,
 }
 
@@ -472,6 +486,7 @@ impl State {
                 Kind::History => self.store.history_json(),
                 Kind::Extensions => ext::data_json(),
                 Kind::Settings => json!({ "settings": self.store.settings }),
+                Kind::Passwords => json!({ "vault": self.passwords.status(), "credentials": self.passwords.list().unwrap_or_default() }),
                 _ => self.store.bookmarks_json(),
             };
             let _ = t
@@ -500,6 +515,7 @@ impl State {
             .with_url(url)
             .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
+            .with_initialization_script(PASSWORD_AUTOFILL_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -522,12 +538,19 @@ impl State {
             .with_ipc_handler(move |req| {
                 let body = req.body();
                 if body.starts_with("context-open:")
+                    || body.starts_with("passwords-request:")
+                    || body.starts_with("passwords-fill:")
                     || body == "shortcut:f11"
                     || body == "shortcut:ctrl-t"
                     || body == "shortcut:ctrl-w"
                     || body == "shortcut:ctrl-shift-n"
                 {
-                    let _ = p_shortcut.send_event(UserEvent::Ipc(body.to_string()));
+                    let routed = if let Some(rest) = body.strip_prefix("passwords-request:") {
+                        format!("passwords-request-id:{id}:{rest}")
+                    } else if let Some(rest) = body.strip_prefix("passwords-fill:") {
+                        format!("passwords-fill-id:{id}:{rest}")
+                    } else { body.to_string() };
+                    let _ = p_shortcut.send_event(UserEvent::Ipc(routed));
                 }
             });
         // Externe Seiten dürfen nur die vier oben whitelisted Shortcut-Befehle senden.
@@ -546,6 +569,7 @@ impl State {
                 "__DATA__",
                 &store::script_safe(&json!({ "settings": self.store.settings })),
             ),
+            Kind::Passwords => include_str!("passwords.html").to_string(),
             _ => self.store.bookmarks_page(),
         };
         let p_ipc = self.proxy.clone();
@@ -692,6 +716,7 @@ impl State {
                 Kind::History => ("Verlauf", "rak://verlauf"),
                 Kind::Extensions => ("Erweiterungen", "rak://erweiterungen"),
                 Kind::Settings => ("Einstellungen", "rak://einstellungen"),
+                Kind::Passwords => ("Passwörter", "browser://passwords"),
                 _ => ("Lesezeichen", "rak://lesezeichen"),
             };
             self.tabs.push(Tab {
@@ -827,6 +852,7 @@ impl State {
     }
 
     fn handle(&mut self, window: &Window, ev: UserEvent) -> bool {
+        self.passwords.tick();
         match ev {
             UserEvent::Relayout => {
                 self.layout(window);
@@ -908,6 +934,33 @@ impl State {
     fn ipc(&mut self, window: &Window, msg: &str) -> bool {
         let (cmd, arg) = msg.split_once(':').unwrap_or((msg, ""));
         match cmd {
+            "passwords-request-id" => {
+                let mut p = arg.splitn(2, ':');
+                let id = p.next().and_then(|x| x.parse::<u32>().ok());
+                let raw = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| x.into_owned());
+                if let (Some(id), Some(page)) = (id, raw) {
+                    if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id && t.kind == Kind::Web) {
+                        if t.url == page || urlencoding::decode(&t.url).map(|x| x == page).unwrap_or(false) {
+                            if let Ok(items) = self.passwords.matching(&t.url) {
+                                let _ = t.view.evaluate_script(&format!("window.__rakFillCredentials({});", json!(items)));
+                            }
+                        }
+                    }
+                }
+            }
+            "passwords-fill-id" => {
+                let mut p = arg.splitn(3, ':');
+                let tab = p.next().and_then(|x| x.parse::<u32>().ok());
+                let credential = p.next().and_then(|x| x.parse::<i64>().ok());
+                let page = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| x.into_owned());
+                if let (Some(tab), Some(credential), Some(page)) = (tab, credential, page) {
+                    if let Some(t) = self.tabs.iter_mut().find(|t| t.id == tab && t.kind == Kind::Web) {
+                        if let Ok((username, password)) = self.passwords.secret_for(&page, credential) {
+                            let _ = t.view.evaluate_script(&format!("window.__rakFillSecret({});", json!({"username":username,"password":password})));
+                        }
+                    }
+                }
+            }
             "context-open" => {
                 if let Ok(url) = urlencoding::decode(arg) {
                     if is_http(&url) {
@@ -1044,6 +1097,7 @@ impl State {
                 "rak://lesezeichen" => self.open_internal(window, Kind::Bookmarks),
                 "rak://erweiterungen" => self.open_internal(window, Kind::Extensions),
                 "rak://einstellungen" => self.open_internal(window, Kind::Settings),
+                "rak://passwoerter" | "browser://passwords" => self.open_internal(window, Kind::Passwords),
                 other => {
                     let url = normalize_with_engine(other, &self.store.settings.search_engine);
                     if self.tabs.iter().any(|t| t.id == self.active && t.kind == Kind::Home) {
@@ -1055,6 +1109,7 @@ impl State {
             },
             "home" => self.open_internal(window, Kind::Home),
             "settings" => self.open_internal(window, Kind::Settings),
+            "passwords" => self.open_internal(window, Kind::Passwords),
             "translate" => {
                 if let Some(url) = self
                     .tabs
@@ -1225,6 +1280,13 @@ impl State {
                 Some("settings") => self.open_internal(window, Kind::Settings),
                 _ => {}
             },
+            Some("password_unlock") => { let _ = self.passwords.unlock(v["password"].as_str()); }
+            Some("password_lock") => self.passwords.lock(),
+            Some("password_master_enable") => { let _ = self.passwords.enable_master(v["password"].as_str().unwrap_or("")); }
+            Some("password_master_disable") => { let _ = self.passwords.disable_master(v["password"].as_str().unwrap_or("")); }
+            Some("password_save") => { let _ = self.passwords.save(v["origin"].as_str().unwrap_or(""), v["username"].as_str().unwrap_or(""), v["password"].as_str().unwrap_or("")); }
+            Some("password_delete") => { if let Some(id) = v["id"].as_i64() { let _ = self.passwords.delete(id); } }
+            Some("passwords_open") => self.open_internal(window, Kind::Passwords),
             Some("hist_del") => {
                 if let (Some(ts), Some(url)) = (v["ts"].as_u64(), v["url"].as_str()) {
                     self.store.delete_history_entry(ts, url);
@@ -1337,6 +1399,7 @@ fn main() -> wry::Result<()> {
 
     let host = make_host(&window);
     let store = Store::load();
+    let password_vault = passwords::Vault::open(&store::data_dir()).expect("Passworttresor konnte nicht geöffnet werden");
     let panel_w = store.settings.panel_width;
 
     // RAK-Titelleiste liegt außerhalb der Browser-Werkzeugleisten.
@@ -1415,6 +1478,7 @@ fn main() -> wry::Result<()> {
         next_id: 1,
         active: 0,
         store,
+        passwords: password_vault,
         update_ready: None,
     };
     // Tabs der letzten Sitzung wiederherstellen, sonst Startseite

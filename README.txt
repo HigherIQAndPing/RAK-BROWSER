@@ -249,3 +249,24 @@ der Tab-Leiste geöffnet. Startseitenlinks erzeugen normale neue Tabs. Ein
 Mittelklick auf Links öffnet sie ebenfalls in einem neuen Tab. Rechtsklick auf
 Links und Bilder zeigt ein RAK-Menü zum Kopieren der Link- beziehungsweise
 Bildadresse und zum Öffnen in einem neuen Tab.
+
+PASSWORTMANAGER
+---------------
+Version 0.9.9 enthält den ersten integrierten Passworttresor unter
+browser://passwords. Zugangsdaten liegen in einer lokalen SQLite-Datenbank,
+werden pro Eintrag mit AES-256-GCM und eigener Nonce verschlüsselt und der
+Data-Encryption-Key wird standardmäßig über den nativen OS-Schlüsselbund
+verwaltet. Optional kann ein mindestens zwölf Zeichen langes Master-Passwort
+aktiviert werden; daraus wird mit Argon2id ein Schlüssel abgeleitet, der den
+DEK verschlüsselt. Bei aktivem Master-Passwort sperrt sich der Tresor nach zehn
+Minuten Inaktivität.
+
+Die Autofill-Bridge erkennt Passwortfelder und fragt ausschließlich für die
+aktuelle HTTP(S)-Origin passende Einträge an. RAK gibt keinen vollständigen
+Tresor an Webseiten weiter und prüft beim Füllen zusätzlich die Origin im
+Rust-Kern. Die Passwortverwaltung ist über Einstellungen erreichbar und enthält zusätzlich einen kryptografisch zufälligen Passwortgenerator.
+
+Bewusst noch nicht simuliert werden Windows Hello/Touch ID-Dialoge und ein
+automatisches natives Banner zum Speichern nach Formular-Submit; dafür müssen
+die jeweiligen Plattform-APIs und ein verlässlicher SPA-Submit-Hook separat
+integriert und auf jeder Zielplattform getestet werden.

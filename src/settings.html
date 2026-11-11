@@ -35,6 +35,12 @@
   <div class="sub">Suchmaschine, automatische Übersetzung und Farben der Browseroberfläche. Änderungen werden automatisch gespeichert.</div>
 
   <section class="card">
+    <h2>Passwortmanager</h2>
+    <div class="desc">Lokaler, verschlüsselter Tresor mit optionalem Master-Passwort und origin-geprüftem Autofill.</div>
+    <button id="passwords_open" type="button" style="height:36px;border:0;border-radius:9px;padding:0 14px;color:#081216;background:var(--accent);font-weight:700;cursor:pointer">Passwörter verwalten</button>
+  </section>
+
+  <section class="card">
     <h2>Suche</h2>
     <div class="desc">Legt fest, welcher Anbieter für Suchbegriffe in der Adressleiste und beim Öffnen eines neuen Tabs verwendet wird.</div>
     <div class="row"><div class="label">Standardsuchmaschine</div>
@@ -96,6 +102,7 @@
     root.setProperty('--accent', colors.accent || '#19d3ff');
     root.setProperty('--text', colors.text || '#e8e8f0');
   }
+  $('passwords_open').onclick = () => send({t:'passwords_open'});
   function save() {
     const colors = {};
     document.querySelectorAll('[data-color]').forEach(input => colors[input.dataset.color] = input.value);

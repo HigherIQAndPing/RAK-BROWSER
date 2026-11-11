@@ -219,6 +219,12 @@ jobs:
           * Mittelklick auf Links öffnet sie in einem neuen Tab – auch auf der Startseite.
           * RAK-Kontextmenü für Links und Bilder mit Kopieren- und „In neuem Tab öffnen“-Aktionen.
           '@
+            'v0.9.9' = @'
+          ### Diese Version
+          * Verschlüsselter SQLite-Passworttresor mit AES-256-GCM und eigener Nonce pro Eintrag.
+          * Optionales Argon2id-Master-Passwort mit Auto-Lock nach zehn Minuten.
+          * browser://passwords und origin-geprüfte Autofill-Bridge für passende WebView-Origins.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }
