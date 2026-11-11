@@ -88,6 +88,8 @@ enum UserEvent {
     Ext(String),
     /// Ergebnis der Update-Suche: Some(version) = installiert, Neustart nötig
     Update(Option<String>),
+    /// Nach Abschluss des nativen Vollbildwechsels die WebView-Geometrie erneut anwenden.
+    Relayout,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -312,6 +314,22 @@ impl State {
         for t in &self.tabs {
             place(&self.host, &t.view, x, content_y, w - x, body_h);
         }
+    }
+
+    /// F11 schaltet den nativen Vollbildmodus um und misst das Layout nach dem
+    /// asynchronen Fensterwechsel nochmals mit den endgültigen Monitormaßen.
+    fn toggle_fullscreen(&self, window: &Window) {
+        if window.fullscreen().is_some() {
+            window.set_fullscreen(None);
+        } else {
+            window.set_fullscreen(Some(Fullscreen::Borderless(window.current_monitor())));
+        }
+        self.layout(window);
+        let proxy = self.proxy.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            let _ = proxy.send_event(UserEvent::Relayout);
+        });
     }
 
     fn show_only(&self) {
@@ -752,6 +770,10 @@ impl State {
 
     fn handle(&mut self, window: &Window, ev: UserEvent) -> bool {
         match ev {
+            UserEvent::Relayout => {
+                self.layout(window);
+                return false;
+            }
             UserEvent::Update(v) => {
                 self.update_ready = v;
                 self.push_update();
@@ -841,14 +863,7 @@ impl State {
                 _ => {}
             },
             "shortcut" => match arg {
-                "f11" => {
-                    if window.fullscreen().is_some() {
-                        window.set_fullscreen(None);
-                    } else {
-                        window.set_fullscreen(Some(Fullscreen::Borderless(window.current_monitor())));
-                    }
-                    self.layout(window);
-                }
+                "f11" => self.toggle_fullscreen(window),
                 "ctrl-t" => self.new_web_tab(
                     window,
                     search_home(&self.store.settings.search_engine),
@@ -1368,6 +1383,12 @@ fn main() -> wry::Result<()> {
                 st.layout(&window);
             }
             Event::WindowEvent {
+                event: WindowEvent::ScaleFactorChanged { .. },
+                ..
+            } => {
+                st.layout(&window);
+            }
+            Event::WindowEvent {
                 event: WindowEvent::ModifiersChanged(state),
                 ..
             } => {
@@ -1392,12 +1413,7 @@ fn main() -> wry::Result<()> {
                 };
                 if let Some(command) = command {
                     if command == "fullscreen" {
-                        if window.fullscreen().is_some() {
-                            window.set_fullscreen(None);
-                        } else {
-                            window.set_fullscreen(Some(Fullscreen::Borderless(window.current_monitor())));
-                        }
-                        st.layout(&window);
+                        st.toggle_fullscreen(&window);
                     } else if st.ipc(&window, &command) {
                         *control_flow = ControlFlow::Exit;
                     } else {

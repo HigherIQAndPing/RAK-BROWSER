@@ -189,6 +189,11 @@ jobs:
           * Neuer Bereich „Zuletzt geöffnet“ mit bis zu acht Einträgen aus dem lokalen Verlauf.
           * Verlaufseinträge können direkt von der Startseite erneut geöffnet werden.
           '@
+            'v0.9.7' = @'
+          ### Diese Version
+          * Startseite: Suchfeld bleibt auch bei Fokus gleichmaessig gefuellt; Fokus wird am Suchrahmen angezeigt.
+          * F11: Layout wird nach dem nativen Vollbildwechsel erneut an die endgueltige Fenstergeometrie angepasst.
+          '@
             'v0.9.6' = @'
           ### Diese Version
           * Sicherheit: Updates werden in Release-Builds ausschliesslich ueber HTTPS (auch bei Weiterleitungen) geladen.

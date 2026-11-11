@@ -8,6 +8,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 const html = fs.readFileSync(path.join(__dirname, '../src/ui.html'), 'utf8');
+const homeHtml = fs.readFileSync(path.join(__dirname, '../src/home.html'), 'utf8');
+const mainRs = fs.readFileSync(path.join(__dirname, '../src/main.rs'), 'utf8');
 
 function fixture(ipc = true) {
   const messages = [], errors = [];
@@ -42,6 +44,17 @@ function fixture(ipc = true) {
 }
 const tab = (id, island = null, privateMode = false, title = `Tab ${id}`) => ({ id, title, url: `https://example.com/${id}`, private: privateMode, island });
 const group = (id, collapsed = false, privateMode = false, name = `Insel ${id}`, color = '#19d3ff') => ({ id, name, color, collapsed, private: privateMode });
+
+test('homepage search focus does not paint a mismatched input fill', () => {
+  assert.match(homeHtml, /\.search input:focus\{background:transparent\}/);
+  assert.match(homeHtml, /\.search:focus-within\{border-color:var\(--accent\)\}/);
+});
+
+test('fullscreen relayout is repeated after native window size changes', () => {
+  assert.match(mainRs, /fn toggle_fullscreen\(&self, window: &Window\)/);
+  assert.match(mainRs, /WindowEvent::ScaleFactorChanged \{ \.\. \}/);
+  assert.match(mainRs, /UserEvent::Relayout/);
+});
 
 // Browser layout is checked separately; jsdom cannot measure actual scroll widths.
 test('fixed-height layout, fixed controls, safe tab titles, and existing IPC controls', () => {

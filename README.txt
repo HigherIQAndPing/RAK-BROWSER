@@ -112,6 +112,7 @@ Browser-IPC-Schnittstelle, sondern nur diese vier fest erlaubten Befehle.
 F11 ist echter Vollbildmodus: Die obere RAK-Fensterleiste wird ausgeblendet
 und auch Tab-Leiste, Adress-/Werkzeugleiste sowie Lesezeichenleiste werden
 ausgeblendet. Im Vollbild bleibt nur der Webseiteninhalt sichtbar.
+Seit Version 0.9.7 bleibt das Startseiten-Suchfeld auch im Fokus gleichmaessig gefuellt. Nach dem F11-Wechsel wird die WebView-Geometrie nochmals mit den endgueltigen Fenstermaßen abgeglichen, damit am unteren Rand kein schmaler Reststreifen stehen bleibt.
 
 Der Homescreen ist ein vollflaechiges, responsives Raster. Karten, Schrift,
 Abstaende und Innenabstaende skalieren gemeinsam mit Breite und Hoehe des
