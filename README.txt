@@ -234,3 +234,8 @@ src/update.rs eingebaut), passender SHA-256-Pruefsumme und HOEHERER Versionsnumm
 Voraussetzungen: Das Repository (bzw. REPO in src/update.rs) muss oeffentlich sein, und RAK.exe muss in
 einem beschreibbaren Ordner liegen. Veroeffentlichen: Secret RAK_SIGNING_KEY setzen, Version in
 Cargo.toml erhoehen, dann "git tag vX.Y.Z" und "git push --tags".
+
+SITZUNG WIEDERHERSTELLEN
+------------------------
+Beim naechsten Start oeffnet RAK die zuletzt offenen normalen Tabs wieder (Datei session.json im
+RAK-Datenordner, %APPDATA%\RAK). Private Tabs und interne Seiten werden nie gespeichert.

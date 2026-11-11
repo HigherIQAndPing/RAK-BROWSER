@@ -181,6 +181,10 @@ jobs:
           * Neuer Bereich „Zuletzt geöffnet“ mit bis zu acht Einträgen aus dem lokalen Verlauf.
           * Verlaufseinträge können direkt von der Startseite erneut geöffnet werden.
           '@
+            'v0.9.5' = @'
+          ### Diese Version
+          * Sitzungswiederherstellung: Die beim Beenden offenen Tabs sind beim naechsten Start wieder da (private Tabs werden nie gespeichert).
+          '@
             'v0.9.4' = @'
           ### Diese Version
           * Automatische, signierte Updates: RAK prueft im Hintergrund auf neue Versionen und zeigt "Update - Neustart".
