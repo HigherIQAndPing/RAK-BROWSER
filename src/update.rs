@@ -66,7 +66,9 @@ fn parse_ver(v: &str) -> Option<(u64, u64, u64)> {
 
 fn fetch(url: &str, dest: &PathBuf, max: u64) -> Result<(), String> {
     let mut cmd = Command::new(if cfg!(windows) { "curl.exe" } else { "curl" });
-    cmd.args(["-sS", "-L", "-f", "--proto", "=https,http", "--max-time", "300", "--max-filesize"])
+    // Release-Builds laden ausschließlich per HTTPS (auch bei Weiterleitungen); http nur in Testbuilds.
+    let (proto, redir) = if cfg!(debug_assertions) { ("=https,http", "=https,http") } else { ("=https", "=https") };
+    cmd.args(["-sS", "-L", "-f", "--proto", proto, "--proto-redir", redir, "--max-time", "300", "--max-filesize"])
         .arg(max.to_string())
         .arg("-o")
         .arg(dest)

@@ -101,6 +101,14 @@ jobs:
         with:
           path: src-repo
 
+      - name: Version in Cargo.toml muss zum Tag passen
+        shell: pwsh
+        working-directory: src-repo
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          if ("v$v" -ne $env:RELEASE_TAG) { throw "Cargo.toml ($v) passt nicht zum Tag $env:RELEASE_TAG - sonst wuerde RAK sich endlos neu aktualisieren." }
+
       - name: Update-Dateien signieren
         shell: pwsh
         working-directory: src-repo
@@ -180,6 +188,11 @@ jobs:
           * Startseite auf das ruhigere, funktionale Layout von Version 0.6 zurückgesetzt.
           * Neuer Bereich „Zuletzt geöffnet“ mit bis zu acht Einträgen aus dem lokalen Verlauf.
           * Verlaufseinträge können direkt von der Startseite erneut geöffnet werden.
+          '@
+            'v0.9.6' = @'
+          ### Diese Version
+          * Sicherheit: Updates werden in Release-Builds ausschliesslich ueber HTTPS (auch bei Weiterleitungen) geladen.
+          * Release-Pruefung: Tag und Version in Cargo.toml muessen uebereinstimmen.
           '@
             'v0.9.5' = @'
           ### Diese Version
