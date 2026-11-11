@@ -12,7 +12,7 @@ mod passwords;
 
 use islands::TabIslands;
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use store::Store;
 use tao::{
@@ -121,6 +121,10 @@ const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
 })();
 "#;
 
+const PROTECTION_SCRIPT: &str = r#"
+(function(){if(window.__rakProtection)return;window.__rakProtection=true;const bad=/(doubleclick|googlesyndication|google-analytics|googletagmanager|facebook\.net\/.*(pixel|tr)|connect\.facebook|adservice|adsystem|adnxs|taboola|outbrain|scorecardresearch|hotjar|mixpanel|segment\.io|clarity\.ms)/i;let n=0,paused=false;const post=x=>{try{window.ipc&&window.ipc.postMessage(x)}catch(_){}};const count=()=>{if(paused)return;document.querySelectorAll('script[src],img[src],iframe[src],link[href]').forEach(e=>{const u=e.src||e.href;if(bad.test(u)&&!e.dataset.rakBlocked){e.dataset.rakBlocked='1';n++;if(e.tagName==='SCRIPT')e.remove();else e.style.display='none'}});post('blocker-count:'+n)};const oldFetch=window.fetch;if(oldFetch)window.fetch=function(...a){const u=String(a[0]?.url||a[0]||'');if(!paused&&bad.test(u)){n++;post('blocker-count:'+n);return Promise.reject(new Error('RAK blocker'))}return oldFetch.apply(this,a)};const oldOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...r){if(!paused&&bad.test(String(u))){this.__rakBlocked=true;n++;post('blocker-count:'+n)}return oldOpen.call(this,m,this.__rakBlocked?'about:blank':u,...r)};window.__rakProtectionSetPaused=x=>{paused=!!x;post('blocker-count:'+n)};window.__rakPipAvailable=()=>{const active=[...document.querySelectorAll('video')].some(v=>!v.paused&&!v.ended&&v.readyState>2);post('pip-available:'+(active?'1':'0'))};window.__rakPipToggle=async()=>{const v=[...document.querySelectorAll('video')].find(v=>!v.paused&&!v.ended)||document.querySelector('video');if(!v)return;if(document.pictureInPictureElement)await document.exitPictureInPicture();else if(v.requestPictureInPicture)await v.requestPictureInPicture();window.__rakPipAvailable()};new MutationObserver(count).observe(document.documentElement,{subtree:true,childList:true});setInterval(window.__rakPipAvailable,1000);count();window.__rakPipAvailable()})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
@@ -226,11 +230,15 @@ fn is_http(u: &str) -> bool {
     u.starts_with("http://") || u.starts_with("https://")
 }
 
+fn origin_key(u: &str) -> String {
+    u.split('/').take(3).collect::<Vec<_>>().join("/").to_ascii_lowercase()
+}
+
 fn normalize_with_engine(input: &str, engine: &str) -> String {
     let t = input.trim();
     if is_http(t) {
         t.to_string()
-    } else if t.contains('.') && !t.contains(' ') {
+    } else if (t.contains('.') || t.starts_with("localhost:") || t.starts_with("127.0.0.1:")) && !t.contains(' ') {
         format!("https://{t}")
     } else {
         let q = percent_encode(t);
@@ -330,6 +338,9 @@ struct State {
     store: Store,
     passwords: passwords::Vault,
     update_ready: Option<String>,
+    blocker_paused: HashSet<String>,
+    blocked_counts: HashMap<u32, u32>,
+    pip_available: HashSet<u32>,
 }
 
 impl State {
@@ -431,13 +442,28 @@ impl State {
                 })
             })
             .collect();
+        let mut suggestions = Vec::new();
+        for h in self.store.history.iter().rev().take(50) {
+            suggestions.push(json!({"title":h.title,"url":h.url}));
+        }
+        for b in self.store.bookmarks.iter().take(50) {
+            suggestions.push(json!({"title":b.title,"url":b.url}));
+        }
         let js = format!(
-            "window.rak && window.rak.setTabs({}, {}, {});",
+            "window.rak && window.rak.setTabs({}, {}, {}); window.rak && window.rak.setSuggestions({}); {}",
             json!(list),
             self.active,
-            json!(islands)
+            json!(islands),
+            json!(suggestions),
+            self.page_status_js()
         );
         let _ = self.ui.evaluate_script(&js);
+    }
+
+    fn page_status_js(&self) -> String {
+        let blocked = self.blocked_counts.get(&self.active).copied().unwrap_or(0);
+        let paused = self.tabs.iter().find(|t| t.id == self.active).map(|t| self.blocker_paused.contains(&origin_key(&t.url))).unwrap_or(false);
+        format!("window.rak && window.rak.setPageStatus({});", json!({"blocked":blocked,"paused":paused,"pip":self.pip_available.contains(&self.active)}))
     }
 
     fn push_bookmarks(&self) {
@@ -517,6 +543,7 @@ impl State {
             .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
             .with_initialization_script(PASSWORD_AUTOFILL_SCRIPT)
+            .with_initialization_script(PROTECTION_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -541,6 +568,8 @@ impl State {
                 if body.starts_with("context-open:")
                     || body.starts_with("passwords-request:")
                     || body.starts_with("passwords-fill:")
+                    || body.starts_with("blocker-count:")
+                    || body.starts_with("pip-available:")
                     || body == "shortcut:f11"
                     || body == "shortcut:ctrl-t"
                     || body == "shortcut:ctrl-w"
@@ -550,6 +579,10 @@ impl State {
                         format!("passwords-request-id:{id}:{rest}")
                     } else if let Some(rest) = body.strip_prefix("passwords-fill:") {
                         format!("passwords-fill-id:{id}:{rest}")
+                    } else if let Some(rest) = body.strip_prefix("blocker-count:") {
+                        format!("blocker-count-id:{id}:{rest}")
+                    } else if let Some(rest) = body.strip_prefix("pip-available:") {
+                        format!("pip-available-id:{id}:{rest}")
                     } else { body.to_string() };
                     let _ = p_shortcut.send_event(UserEvent::Ipc(routed));
                 }
@@ -583,7 +616,7 @@ impl State {
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
             .with_ipc_handler(move |req| {
                 let body = req.body();
-                if body.starts_with("shortcut:") || body.starts_with("context-open:") {
+                if body.starts_with("shortcut:") || body.starts_with("context-open:") || body.starts_with("nav:") || body.starts_with("suggest:") || body.starts_with("blocker-toggle:") || body == "pip-toggle" {
                     let _ = p_ipc.send_event(UserEvent::Ipc(body.to_string()));
                 } else {
                     let _ = p_ipc.send_event(UserEvent::Page(body.to_string()));
@@ -911,6 +944,8 @@ impl State {
                         let title = t.title.clone();
                         self.store.add_history(&url, &title);
                     }
+                    let paused = self.blocker_paused.contains(&origin_key(&url));
+                    let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({}); window.__rakPipAvailable && window.__rakPipAvailable();", paused));
                 }
             }
             UserEvent::OpenUrl { url, source } => {
@@ -937,6 +972,14 @@ impl State {
     fn ipc(&mut self, window: &Window, msg: &str) -> bool {
         let (cmd, arg) = msg.split_once(':').unwrap_or((msg, ""));
         match cmd {
+            "blocker-count-id" => {
+                let mut p = arg.splitn(2, ':');
+                if let (Some(id), Some(n)) = (p.next().and_then(|x| x.parse::<u32>().ok()), p.next().and_then(|x| x.parse::<u32>().ok())) { self.blocked_counts.insert(id, n); }
+            }
+            "pip-available-id" => {
+                let mut p = arg.splitn(2, ':');
+                if let (Some(id), Some(v)) = (p.next().and_then(|x| x.parse::<u32>().ok()), p.next()) { if v == "1" { self.pip_available.insert(id); } else { self.pip_available.remove(&id); } }
+            }
             "passwords-request-id" => {
                 let mut p = arg.splitn(2, ':');
                 let id = p.next().and_then(|x| x.parse::<u32>().ok());
@@ -1015,6 +1058,25 @@ impl State {
                 self.push_bookmarks();
                 self.push_side();
                 self.push_settings();
+            }
+            "nav" => {
+                let input = urlencoding::decode(arg).map(|v| v.into_owned()).unwrap_or_else(|_| arg.to_string());
+                if !input.trim().is_empty() { let url = normalize_with_engine(&input, &self.store.settings.search_engine); self.navigate_active(window, &url); }
+            }
+            "suggest" => {
+                let q = urlencoding::decode(arg).map(|v| v.to_lowercase()).unwrap_or_default();
+                let mut out = Vec::new();
+                for h in self.store.history.iter().rev() { if h.url.to_lowercase().contains(&q) || h.title.to_lowercase().contains(&q) { out.push(json!({"title":h.title,"url":h.url})); } }
+                for b in self.store.bookmarks.iter() { if b.url.to_lowercase().contains(&q) || b.title.to_lowercase().contains(&q) { out.push(json!({"title":b.title,"url":b.url})); } }
+                let _ = self.ui.evaluate_script(&format!("window.rak && window.rak.setSuggestions({});", json!(out.into_iter().take(5).collect::<Vec<_>>())));
+            }
+            "blocker-toggle" => {
+                let url = urlencoding::decode(arg).map(|v| v.into_owned()).unwrap_or_default(); let key = origin_key(&url);
+                if !self.blocker_paused.remove(&key) { self.blocker_paused.insert(key.clone()); }
+                if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) { let paused = self.blocker_paused.contains(&key); let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({});", paused)); }
+            }
+            "pip-toggle" => {
+                if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) { let _ = t.view.evaluate_script("window.__rakPipToggle && window.__rakPipToggle();"); }
             }
             "new" => self.new_web_tab(
                 window,
@@ -1493,6 +1555,9 @@ fn main() -> wry::Result<()> {
         store,
         passwords: password_vault,
         update_ready: None,
+        blocker_paused: HashSet::new(),
+        blocked_counts: HashMap::new(),
+        pip_available: HashSet::new(),
     };
     // Tabs der letzten Sitzung wiederherstellen, sonst Startseite
     let (urls, active) = store::load_session();

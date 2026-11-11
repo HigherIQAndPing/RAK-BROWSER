@@ -102,6 +102,17 @@
   #bm.context select { min-width:0; width:145px; flex:0 1 145px; border-radius:6px; padding-left:7px; }
   #bm.context input { width:200px; min-width:60px; flex:0 1 200px; border-radius:6px; padding-left:7px; }
   #context-close { margin-left:auto; width:26px; padding:0 !important; }
+  #url-wrap { position:relative; flex:1; min-width:120px; display:flex; align-items:center; }
+  #url-wrap #url { width:100%; }
+  #security-mark { position:absolute; left:10px; z-index:2; font-size:13px; pointer-events:none; }
+  #url { padding-left:30px; }
+  #suggestions { position:absolute; top:calc(100% + 5px); left:0; right:0; z-index:50; display:none; padding:5px; background:var(--panel2); border:1px solid var(--line); border-radius:9px; box-shadow:0 12px 28px #0008; }
+  .suggestion { display:flex; gap:9px; align-items:center; width:100%; padding:8px 10px; color:var(--text); background:transparent; border:0; border-radius:6px; text-align:left; cursor:pointer; }
+  .suggestion:hover,.suggestion.selected { background:var(--panel); }
+  .suggestion .favicon { width:20px; font-size:15px; text-align:center; }
+  .suggestion .sbody { min-width:0; flex:1; }.suggestion .stitle,.suggestion .surl { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.suggestion .surl { color:var(--dim); font-size:11px; margin-top:2px; }
+  #shield { position:relative; }.badge { position:absolute; top:-3px; right:-3px; min-width:14px; height:14px; padding:0 3px; border-radius:8px; background:#ff6b79; color:#160a0e; font-size:9px; line-height:14px; font-weight:800; display:none; }
+  #security-pop { position:absolute; top:calc(100% + 6px); right:95px; z-index:60; width:260px; padding:13px; display:none; background:var(--panel2); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px #0008; }.pop-title{font-weight:700;margin-bottom:7px}.pop-row{display:flex;justify-content:space-between;gap:10px;align-items:center;color:var(--dim);font-size:12px}.pop-row strong{color:var(--text)}.pop-toggle{margin-top:10px;width:100%;}
 </style>
 </head>
 <body>
@@ -119,17 +130,20 @@
     <button class="btn" id="fwd" title="Vor">▶</button>
     <button class="btn" id="reload" title="Neu laden">⟳</button>
     <button class="btn" id="home" title="Startseite">⌂</button>
-    <input id="url" placeholder="Suchen oder Adresse eingeben" spellcheck="false">
+    <div id="url-wrap"><span id="security-mark">◌</span><input id="url" placeholder="Suchen oder Adresse eingeben" spellcheck="false"><div id="suggestions"></div></div>
     <button class="btn" id="star" title="Lesezeichen setzen / entfernen"></button>
     <button class="btn" id="hist" title="Verlauf"></button>
     <button class="btn" id="bmgr" title="Lesezeichen verwalten"></button>
     <button class="btn" id="updbtn" title="">Update – Neustart</button>
     <button class="btn" id="explore" title="Zufälliger Ort entdecken" aria-label="Zufälliger Ort entdecken"></button>
+    <button class="btn" id="shield" title="Werbe- und Trackerschutz" aria-label="Werbe- und Trackerschutz"><span class="badge" id="shield-badge"></span></button>
+    <button class="btn" id="pip" title="Bild-in-Bild" aria-label="Bild-in-Bild" hidden></button>
     <button class="btn" id="extbtn" title="Erweiterungen"></button>
     <button class="btn" id="translate" title="Aktuelle Seite übersetzen" aria-label="Aktuelle Seite übersetzen">文</button>
     <button class="btn" id="settings" title="Einstellungen" aria-label="Einstellungen"></button>
   </div>
   <div id="bm"></div>
+  <div id="security-pop"><div class="pop-title">Werbe- und Trackerschutz</div><div class="pop-row"><span>Auf dieser Seite blockiert</span><strong id="blocked-count">0</strong></div><button class="btn pop-toggle" id="blocker-toggle">Für diese Website pausieren</button></div>
   <div id="tab-status" class="sr-only" role="status" aria-live="polite"></div>
 <script>
   const send = (m) => {
@@ -154,11 +168,13 @@
     folder: S('<path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/>'),
     puzzle: S('<path d="M10 4.5a2 2 0 1 1 4 0V6h4a1 1 0 0 1 1 1v4h-1.5a2 2 0 1 0 0 4H19v3a1 1 0 0 1-1 1h-4v-1.5a2 2 0 1 0-4 0V19H6a1 1 0 0 1-1-1v-4h1.5a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/>'),
     mask: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 11l2.5-6h11L20 11z"/><path d="M2.5 11h19"/><circle cx="8" cy="16" r="2.6"/><circle cx="16" cy="16" r="2.6"/></svg>',
-    smallFolder: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></svg>'
+    smallFolder: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></svg>',
+    shield: S('<path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6z"/><path d="M8.5 12l2.2 2.2 4.8-5"/>'),
+    pip: S('<rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12.5" y="11" width="6" height="5" rx=".7"/>')
   };
 
   const state = { tabs: [], active: 0, islands: [], selected: new Set(), anchor: null, context: null, dragIds: [],
-    bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null };
+    bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null, suggestions: [], suggestionIndex: -1, blocked: 0, blockerPaused: false, pip: false };
   const tabsEl = document.getElementById("tab-list");
   const tabScroll = document.getElementById("tab-scroll");
   const groupButton = document.getElementById("group-tabs");
@@ -171,6 +187,8 @@
   document.getElementById("bmgr").innerHTML = ICON.folder;
   document.getElementById("extbtn").innerHTML = ICON.puzzle;
   document.getElementById("explore").innerHTML = S('<circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2l-2.1 4.4-4.4 2.1 2.1-4.4z"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2"/>');
+  document.getElementById("shield").innerHTML = ICON.shield;
+  document.getElementById("pip").innerHTML = ICON.pip;
   document.getElementById("settings").innerHTML = S('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.6v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.3v-2.6h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2H15v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v2.6h-.2a1.7 1.7 0 0 0-1.5 1z');
 
   function applyTheme(settings) {
@@ -582,8 +600,26 @@
     setSettings(settings) {
       state.settings = settings;
       applyTheme(settings);
+    },
+    setSuggestions(items) {
+      state.suggestions = Array.isArray(items) ? items : []; state.suggestionIndex = -1; renderSuggestions();
+    },
+    setPageStatus(status) {
+      state.blocked = Number(status?.blocked || 0); state.blockerPaused = !!status?.paused; state.pip = !!status?.pip;
+      const mark = document.getElementById("security-mark"), url = activeTab()?.url || "";
+      mark.textContent = /^https:\/\//i.test(url) ? "🔒" : /^http:\/\//i.test(url) ? "⚠" : "◌";
+      mark.title = /^https:\/\//i.test(url) ? "Verschlüsselte Verbindung" : /^http:\/\//i.test(url) ? "Unverschlüsselte Verbindung" : "";
+      const badge = document.getElementById("shield-badge"); badge.textContent = state.blocked > 99 ? "99+" : String(state.blocked); badge.style.display = state.blocked ? "block" : "none";
+      document.getElementById("blocked-count").textContent = String(state.blocked); document.getElementById("blocker-toggle").textContent = state.blockerPaused ? "Schutz für diese Website aktivieren" : "Für diese Website pausieren";
+      document.getElementById("pip").hidden = !state.pip;
     }
   };
+
+  function renderSuggestions() {
+    const box = document.getElementById("suggestions"), query = urlEl.value.trim().toLowerCase(); box.replaceChildren();
+    if (!query || !state.suggestions.length || document.activeElement !== urlEl) { box.style.display = "none"; return; }
+    state.suggestions.slice(0,5).forEach((x,i)=>{const b=el("button","suggestion"+(i===state.suggestionIndex?" selected":""));b.innerHTML='<span class="favicon">'+(x.url?.startsWith("https://")?"🔒":"🌐")+'</span><span class="sbody"><span class="stitle"></span><span class="surl"></span></span>';b.querySelector('.stitle').textContent=x.title||x.url;b.querySelector('.surl').textContent=x.url;b.onclick=()=>{urlEl.value=x.url;send("nav:"+x.url);box.style.display="none"};box.appendChild(b)}); box.style.display="block";
+  }
 
   // ---- Bedienung ----
   document.getElementById("newtab").onclick = () => send("new");
@@ -649,6 +685,9 @@
   document.getElementById("updbtn").onclick = () => send("restart");
   document.getElementById("extbtn").onclick = () => send("ext");
   document.getElementById("explore").onclick = () => send("explore");
+  document.getElementById("shield").onclick = () => { const p=document.getElementById("security-pop"); p.style.display=p.style.display==="block"?"none":"block"; };
+  document.getElementById("blocker-toggle").onclick = () => { const t=activeTab(); if(t) send("blocker-toggle:"+encodeURIComponent(t.url)); document.getElementById("security-pop").style.display="none"; };
+  document.getElementById("pip").onclick = () => send("pip-toggle");
   document.getElementById("settings").onclick = () => send("settings");
   translateEl.onclick = () => send("translate");
   starEl.onclick = () => {
@@ -662,13 +701,15 @@
   };
 
   urlEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { send("nav:" + urlEl.value); urlEl.blur(); }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { if(!state.suggestions.length)return; e.preventDefault(); state.suggestionIndex=(state.suggestionIndex+(e.key==="ArrowDown"?1:-1)+state.suggestions.length)%state.suggestions.length; renderSuggestions(); return; }
+    if (e.key === "Enter") { const x=state.suggestions[state.suggestionIndex]; send("nav:"+(x?.url || urlEl.value)); urlEl.blur(); document.getElementById("suggestions").style.display="none"; }
   });
+  urlEl.addEventListener("input", () => send("suggest:" + encodeURIComponent(urlEl.value)));
   // Beim ersten Klick in die Leiste alles markieren (und die Markierung beim Loslassen der Maus behalten)
   let justFocused = false;
-  urlEl.addEventListener("focus", () => { justFocused = true; urlEl.select(); });
+  urlEl.addEventListener("focus", () => { justFocused = true; urlEl.select(); renderSuggestions(); });
   urlEl.addEventListener("mouseup", (e) => { if (justFocused) { e.preventDefault(); justFocused = false; } });
-  urlEl.addEventListener("blur", () => { justFocused = false; });
+  urlEl.addEventListener("blur", () => { justFocused = false; setTimeout(()=>document.getElementById("suggestions").style.display="none",120); });
 
   if (!hasIpc) {
     urlEl.placeholder = "Nicht in RAK geöffnet – bitte RAK.exe oder start.bat starten, nicht ui.html im Browser öffnen";

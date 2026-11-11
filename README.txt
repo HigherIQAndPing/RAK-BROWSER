@@ -280,3 +280,13 @@ eingebetteten Natural-Earth-Landpolygone geprüft; Punkte im offenen Meer werden
 verworfen. Der Globus animiert anschließend zum Landpunkt und zeigt Koordinaten,
 einen Pin sowie die Aktionen „Nächster Zufallsort“ und „Im Browser suchen“.
 Die Kartendarstellung verwendet Globe.gl und frei zugängliche Earth-Texturen.
+
+RELEASE 0.10.0
+---------------
+Die Omnibox erkennt Webseitenadressen und Suchanfragen automatisch. Während der Eingabe werden bis zu fünf passende Einträge aus lokalem Verlauf und Lesezeichen vorgeschlagen; mit Pfeiltasten und Enter lassen sie sich auswählen. Das Schloss-/Warnsymbol zeigt HTTPS, HTTP oder interne Seiten an.
+
+Der integrierte Werbe- und Trackerschutz filtert bekannte Werbe-, Analyse- und Tracking-Domains direkt im WebView. Das Schild in der Toolbar zeigt die Anzahl blockierter Ressourcen; pro Website kann der Schutz pausiert und wieder aktiviert werden.
+
+Das Bild-in-Bild-Symbol erscheint automatisch, sobald ein aktives Video erkannt wird. Ein Klick verwendet die native requestPictureInPicture()-Schnittstelle. Die neuen Funktionen sind responsiv in die bestehende Toolbar integriert.
+
+Die Schutzfilterung ist eine lokale, heuristische Domainliste und ersetzt keine vollständige Filterlisten-Erweiterung. Webseiten können außerdem Bild-in-Bild durch Browser- oder Plattformrichtlinien einschränken.
