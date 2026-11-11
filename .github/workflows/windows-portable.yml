@@ -189,6 +189,12 @@ jobs:
           * Neuer Bereich „Zuletzt geöffnet“ mit bis zu acht Einträgen aus dem lokalen Verlauf.
           * Verlaufseinträge können direkt von der Startseite erneut geöffnet werden.
           '@
+            'v0.9.7' = @'
+          ### Diese Version
+          * Sicherheit: Webseiten koennen keine Tastenbefehle (Vollbild, Tabs schliessen/oeffnen) mehr vortaeuschen; nur echte Tastendruecke im sichtbaren Tab zaehlen.
+          * Sicherheit: Der Neustart nach einem Update startet zuverlaessig die neue Version.
+          * Erweiterungs-Import folgt keinen Symlinks mehr und ist tiefenbegrenzt.
+          '@
             'v0.9.6' = @'
           ### Diese Version
           * Sicherheit: Updates werden in Release-Builds ausschliesslich ueber HTTPS (auch bei Weiterleitungen) geladen.

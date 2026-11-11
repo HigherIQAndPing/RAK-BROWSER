@@ -44,18 +44,23 @@ const GLOBAL_SHORTCUT_SCRIPT: &str = r#"
 (function () {
   if (window.__rakShortcutsInstalled) return;
   window.__rakShortcutsInstalled = true;
+  // postMessage und Nonce werden vor jedem Seitenskript festgehalten. Die Seite kann sie weder
+  // auslesen noch ersetzen und darum keine Tastenbefehle vortäuschen.
+  if (!window.ipc || !window.ipc.postMessage) return;
+  var post = window.ipc.postMessage.bind(window.ipc);
+  var nonce = '__RAK_NONCE__';
   window.addEventListener('keydown', function (event) {
-    if (event.repeat) return;
+    if (!event.isTrusted || event.repeat) return;
     var command = null;
     var control = event.ctrlKey || event.metaKey;
     if (event.key === 'F11') command = 'f11';
     else if (control && !event.shiftKey && event.key.toLowerCase() === 't') command = 'ctrl-t';
     else if (control && !event.shiftKey && event.key.toLowerCase() === 'w') command = 'ctrl-w';
     else if (control && event.shiftKey && event.key.toLowerCase() === 'n') command = 'ctrl-shift-n';
-    if (command && window.ipc && window.ipc.postMessage) {
+    if (command) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      window.ipc.postMessage('shortcut:' + command);
+      post('shortcut:' + command + ':' + nonce);
     }
   }, true);
 })();
@@ -88,6 +93,8 @@ enum UserEvent {
     Ext(String),
     /// Ergebnis der Update-Suche: Some(version) = installiert, Neustart nötig
     Update(Option<String>),
+    /// Tastenbefehl aus einer Webseite (Tab-ID, Befehl); gilt nur für den aktiven Tab
+    WebShortcut(u32, &'static str),
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -156,6 +163,36 @@ fn with_extensions<'a>(b: WebViewBuilder<'a>) -> WebViewBuilder<'a> {
     {
         b
     }
+}
+
+/// Geheimer Wert dieses Programmlaufs. Nur der eingeschleuste Skriptcode kennt ihn.
+fn shortcut_nonce() -> &'static str {
+    use std::collections::hash_map::RandomState;
+    use std::hash::BuildHasher;
+    use std::sync::OnceLock;
+    static NONCE: OnceLock<String> = OnceLock::new();
+    NONCE.get_or_init(|| {
+        let (a, b) = (RandomState::new().hash_one(1u8), RandomState::new().hash_one(2u8));
+        format!("{a:016x}{b:016x}")
+    })
+}
+
+fn shortcut_script() -> String {
+    GLOBAL_SHORTCUT_SCRIPT.replace("__RAK_NONCE__", shortcut_nonce())
+}
+
+/// "shortcut:<befehl>:<nonce>" -> Befehl, falls Nonce und Befehl gültig sind
+fn parse_shortcut(body: &str) -> Option<&'static str> {
+    let rest = body.strip_prefix("shortcut:")?;
+    let (cmd, nonce) = rest.split_once(':')?;
+    // Vergleich ohne frühen Abbruch (kein Zeitkanal)
+    let expected = shortcut_nonce().as_bytes();
+    let ok = nonce.len() == expected.len()
+        && nonce.bytes().zip(expected.iter()).fold(0u8, |d, (a, b)| d | (a ^ b)) == 0;
+    if !ok {
+        return None;
+    }
+    ["f11", "ctrl-t", "ctrl-w", "ctrl-shift-n"].into_iter().find(|c| *c == cmd)
 }
 
 fn is_http(u: &str) -> bool {
@@ -432,7 +469,7 @@ impl State {
         let builder = new_builder()
             .with_bounds(rect(x, UI_HEIGHT, w - x, h - UI_HEIGHT))
             .with_url(url)
-            .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
+            .with_initialization_script(shortcut_script())
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -453,13 +490,10 @@ impl State {
                 false // kein eigenes Fenster, die Adresse öffnet in einem neuen Tab
             })
             .with_ipc_handler(move |req| {
-                let body = req.body();
-                if body == "shortcut:f11"
-                    || body == "shortcut:ctrl-t"
-                    || body == "shortcut:ctrl-w"
-                    || body == "shortcut:ctrl-shift-n"
-                {
-                    let _ = p_shortcut.send_event(UserEvent::Ipc(body.to_string()));
+                // Webseiten dürfen nur gültig beglaubigte Tastenbefehle senden, und nur der
+                // sichtbare Tab darf sie auslösen (siehe UserEvent::WebShortcut).
+                if let Some(cmd) = parse_shortcut(req.body()) {
+                    let _ = p_shortcut.send_event(UserEvent::WebShortcut(id, cmd));
                 }
             });
         // Externe Seiten dürfen nur die vier oben whitelisted Shortcut-Befehle senden.
@@ -485,11 +519,13 @@ impl State {
         let builder = new_builder()
             .with_bounds(rect(x, UI_HEIGHT, w - x, h - UI_HEIGHT))
             .with_html(html)
-            .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
+            .with_initialization_script(shortcut_script())
             .with_ipc_handler(move |req| {
                 let body = req.body();
                 if body.starts_with("shortcut:") {
-                    let _ = p_ipc.send_event(UserEvent::Ipc(body.to_string()));
+                    if let Some(cmd) = parse_shortcut(body) {
+                        let _ = p_ipc.send_event(UserEvent::Ipc(format!("shortcut:{cmd}")));
+                    }
                 } else {
                     let _ = p_ipc.send_event(UserEvent::Page(body.to_string()));
                 }
@@ -752,6 +788,13 @@ impl State {
 
     fn handle(&mut self, window: &Window, ev: UserEvent) -> bool {
         match ev {
+            UserEvent::WebShortcut(id, cmd) => {
+                if id == self.active && self.ipc(window, &format!("shortcut:{cmd}")) {
+                    return true;
+                }
+                self.push_tabs();
+                return false;
+            }
             UserEvent::Update(v) => {
                 self.update_ready = v;
                 self.push_update();
@@ -1413,4 +1456,33 @@ fn main() -> wry::Result<()> {
             _ => {}
         }
     });
+}
+
+#[cfg(test)]
+mod shortcut_tests {
+    use super::*;
+
+    #[test]
+    fn nur_beglaubigte_befehle() {
+        let n = shortcut_nonce();
+        assert_eq!(parse_shortcut(&format!("shortcut:f11:{n}")), Some("f11"));
+        assert_eq!(parse_shortcut(&format!("shortcut:ctrl-w:{n}")), Some("ctrl-w"));
+        // Webseite ohne Nonce (alter Weg) oder mit geratener Nonce
+        assert_eq!(parse_shortcut("shortcut:f11"), None);
+        assert_eq!(parse_shortcut("shortcut:f11:"), None);
+        assert_eq!(parse_shortcut(&format!("shortcut:f11:{}", "0".repeat(n.len()))), None);
+        // Unbekannte Befehle bleiben auch mit gültiger Nonce draußen
+        assert_eq!(parse_shortcut(&format!("shortcut:close:{n}")), None);
+        assert_eq!(parse_shortcut(&format!("shortcut:f11:{n}x")), None);
+    }
+
+    #[test]
+    fn nonce_ist_zufaellig_lang_genug_und_im_skript() {
+        let n = shortcut_nonce();
+        assert_eq!(n.len(), 32);
+        assert!(n.bytes().all(|b| b.is_ascii_hexdigit()));
+        let s = shortcut_script();
+        assert!(s.contains(n) && !s.contains("__RAK_NONCE__"));
+        assert!(s.contains("isTrusted"));
+    }
 }

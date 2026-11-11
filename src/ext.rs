@@ -205,12 +205,22 @@ pub fn remove(id: &str) -> Result<(), String> {
 }
 
 fn copy_dir(src: &Path, dst: &Path) -> Result<(), String> {
+    copy_dir_depth(src, dst, 0)
+}
+
+/// Folgt keinen Symlinks/Junctions (Schleifen, Ausbruch aus dem Profil) und ist tiefenbegrenzt.
+fn copy_dir_depth(src: &Path, dst: &Path, depth: u32) -> Result<(), String> {
+    if depth > 12 {
+        return Err("Ordnerstruktur zu tief".into());
+    }
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
+        let Ok(kind) = entry.file_type() else { continue };
         let from = entry.path();
         let to = dst.join(entry.file_name());
-        if from.is_dir() { copy_dir(&from, &to)?; }
-        else if from.is_file() { fs::copy(&from, &to).map_err(|e| e.to_string())?; }
+        if kind.is_symlink() { continue; }
+        if kind.is_dir() { copy_dir_depth(&from, &to, depth + 1)?; }
+        else if kind.is_file() { fs::copy(&from, &to).map_err(|e| e.to_string())?; }
     }
     Ok(())
 }
@@ -234,7 +244,7 @@ fn find_extension_dirs(dir: &Path, out: &mut Vec<PathBuf>, budget: &mut usize) {
     let Ok(entries) = fs::read_dir(dir) else { return; };
     for entry in entries.flatten() {
         let p = entry.path();
-        if p.is_dir() {
+        if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
             if p.join("manifest.json").is_file() { out.push(p); }
             else { find_extension_dirs(&p, out, budget); }
         }

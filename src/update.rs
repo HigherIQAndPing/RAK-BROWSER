@@ -98,12 +98,18 @@ pub fn verify_manifest(manifest: &[u8], sig: &[u8], key: &VerifyingKey) -> Resul
     Ok(Some((m.version, m.sha256.to_lowercase())))
 }
 
+/// Pfad der EXE, einmal beim Start ermittelt. Nach dem Umbenennen der laufenden Datei könnte
+/// current_exe() je nach System den alten Namen (RAK.old) liefern; dann würde der Neustart die
+/// ALTE Version starten.
 fn exe_path() -> Result<PathBuf, String> {
-    std::env::current_exe().map_err(|e| e.to_string())
+    use std::sync::OnceLock;
+    static EXE: OnceLock<Option<PathBuf>> = OnceLock::new();
+    EXE.get_or_init(|| std::env::current_exe().ok()).clone().ok_or_else(|| "Pfad der EXE unbekannt".to_string())
 }
 
 /// Räumt die Reste eines früheren Updates auf (beim Start aufrufen).
 pub fn cleanup() {
+    let _ = exe_path(); // Pfad jetzt festhalten, bevor ein Update die Datei umbenennt
     if let Ok(e) = exe_path() {
         let _ = fs::remove_file(e.with_extension("old"));
         let _ = fs::remove_file(e.with_extension("new"));
