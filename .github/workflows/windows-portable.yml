@@ -94,6 +94,31 @@ jobs:
           name: RAK-windows-x64
           path: dist/RAK-windows-x64
 
+      # Signierte Update-Dateien fuer die automatische Aktualisierung in RAK:
+      # RAK.exe + update.json (Version, SHA-256) + update.json.sig (Ed25519).
+      - name: Repository fuer das Signier-Werkzeug auschecken
+        uses: actions/checkout@v4
+        with:
+          path: src-repo
+
+      - name: Update-Dateien signieren
+        shell: pwsh
+        working-directory: src-repo
+        env:
+          RAK_SIGNING_KEY: ${{ secrets.RAK_SIGNING_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:RAK_SIGNING_KEY) { throw 'Secret RAK_SIGNING_KEY fehlt (Settings > Secrets and variables > Actions).' }
+          rustup toolchain install stable-x86_64-pc-windows-msvc --profile minimal --no-self-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default stable-x86_64-pc-windows-msvc
+          cargo build --locked --release --bin rak-sign
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Path ../dist/update -Force | Out-Null
+          Copy-Item ../dist/RAK-windows-x64/RAK.exe ../dist/update/RAK.exe
+          ./target/release/rak-sign.exe ../dist/update/RAK.exe "$env:RELEASE_TAG" ../dist/update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Release-ZIP und deutsche Hinweise erstellen
         shell: pwsh
         run: |
@@ -156,6 +181,11 @@ jobs:
           * Neuer Bereich „Zuletzt geöffnet“ mit bis zu acht Einträgen aus dem lokalen Verlauf.
           * Verlaufseinträge können direkt von der Startseite erneut geöffnet werden.
           '@
+            'v0.9.4' = @'
+          ### Diese Version
+          * Automatische, signierte Updates: RAK prueft im Hintergrund auf neue Versionen und zeigt "Update - Neustart".
+          * Updates werden nur mit gueltiger Ed25519-Signatur, passender SHA-256-Pruefsumme und hoeherer Versionsnummer installiert.
+          '@
             'v0.9.3' = @'
           ### Diese Version
           * „Zuletzt geöffnet“ wird fest in zwei Spalten und bis zu vier Zeilen dargestellt.
@@ -205,5 +235,5 @@ jobs:
             gh release create "$env:RELEASE_TAG" --repo "$env:GH_REPO" --verify-tag --title "RAK $env:RELEASE_TAG - Windows x64" --notes-file 'dist/release-notes.md'
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          gh release upload "$env:RELEASE_TAG" 'dist/RAK-windows-x64.zip' --repo "$env:GH_REPO" --clobber
+          gh release upload "$env:RELEASE_TAG" 'dist/RAK-windows-x64.zip' 'dist/update/RAK.exe' 'dist/update/update.json' 'dist/update/update.json.sig' --repo "$env:GH_REPO" --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

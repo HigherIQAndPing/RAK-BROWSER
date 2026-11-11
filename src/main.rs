@@ -7,6 +7,7 @@
 mod ext;
 mod islands;
 mod store;
+mod update;
 
 use islands::TabIslands;
 use serde_json::{json, Value};
@@ -85,6 +86,8 @@ enum UserEvent {
     },
     /// Ergebnis einer Erweiterungs-Installation (JSON), kommt aus einem Hintergrund-Thread
     Ext(String),
+    /// Ergebnis der Update-Suche: Some(version) = installiert, Neustart nötig
+    Update(Option<String>),
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -261,6 +264,7 @@ struct State {
     next_id: u32,
     active: u32,
     store: Store,
+    update_ready: Option<String>,
 }
 
 impl State {
@@ -730,8 +734,18 @@ impl State {
     // ---------- Ereignisse ----------
 
     /// Gibt true zurück, wenn das Programm beendet werden soll.
+    fn push_update(&self) {
+        let v = serde_json::to_string(&self.update_ready).unwrap_or_else(|_| "null".into());
+        let _ = self.ui.evaluate_script(&format!("window.rak && window.rak.setUpdate({v});"));
+    }
+
     fn handle(&mut self, window: &Window, ev: UserEvent) -> bool {
         match ev {
+            UserEvent::Update(v) => {
+                self.update_ready = v;
+                self.push_update();
+                return false;
+            }
             UserEvent::Title(id, title) => {
                 if let Some(t) = self
                     .tabs
@@ -842,7 +856,14 @@ impl State {
                 }
                 _ => {}
             },
+            "restart" => {
+                if self.update_ready.is_some() {
+                    update::spawn_self();
+                    return true;
+                }
+            }
             "ready" => {
+                self.push_update();
                 self.push_tabs();
                 self.push_bookmarks();
                 self.push_side();
@@ -1225,6 +1246,21 @@ fn main() -> wry::Result<()> {
 
     // RAK-Titelleiste liegt außerhalb der Browser-Werkzeugleisten.
     let (w, h) = window_size(&window);
+    update::cleanup();
+    {
+        // Hintergrund-Prüfung: kurz nach dem Start, danach alle 4 Stunden
+        let p = proxy.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(8));
+            loop {
+                if let Ok(Some(v)) = update::check_and_install() {
+                    let _ = p.send_event(UserEvent::Update(Some(v)));
+                    break; // installiert: weiter prüfen ist sinnlos
+                }
+                std::thread::sleep(std::time::Duration::from_secs(4 * 3600));
+            }
+        });
+    }
     ext::sanitize(); // kaputte Reste aus \extensions\ entfernen, sonst könnte der Start scheitern
     let title_proxy = proxy.clone();
     let titlebar = attach(
@@ -1284,6 +1320,7 @@ fn main() -> wry::Result<()> {
         next_id: 1,
         active: 0,
         store,
+        update_ready: None,
     };
     st.open_internal(&window, Kind::Home);
 

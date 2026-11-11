@@ -55,6 +55,8 @@
 
   /* --- Werkzeugleiste --- */
   #bar { height:44px; display:flex; align-items:center; gap:6px; padding:0 8px; background:var(--toolbar); }
+  #updbtn { display:none; width:auto; padding:0 10px; font-size:12px; font-weight:700; color:#0d0d12; background:#3ddc84; border-radius:8px; }
+  #updbtn.show { display:inline-flex; align-items:center; }
   .btn { width:32px; height:32px; border:none; border-radius:8px; background:transparent; color:var(--text); font-size:16px; cursor:pointer;
          display:flex; align-items:center; justify-content:center; flex:none; }
   .btn:hover { background:#2a2a38; color:var(--accent); }
@@ -117,6 +119,7 @@
     <button class="btn" id="star" title="Lesezeichen setzen / entfernen"></button>
     <button class="btn" id="hist" title="Verlauf"></button>
     <button class="btn" id="bmgr" title="Lesezeichen verwalten"></button>
+    <button class="btn" id="updbtn" title="">Update – Neustart</button>
     <button class="btn" id="extbtn" title="Erweiterungen"></button>
     <button class="btn" id="translate" title="Aktuelle Seite übersetzen" aria-label="Aktuelle Seite übersetzen">文</button>
     <button class="btn" id="settings" title="Einstellungen" aria-label="Einstellungen"></button>
@@ -523,6 +526,11 @@
 
   // ---- Schnittstelle zu Rust ----
   window.rak = {
+    setUpdate(v) {
+      const b = document.getElementById("updbtn");
+      b.classList.toggle("show", !!v);
+      b.title = v ? "RAK " + v + " ist installiert – Klick startet RAK neu" : "";
+    },
     setTabs(tabs, active, islands = []) {
       // Nur Aktivierung oder ein Wechsel des sichtbaren Aktiv-Ziels scrollt automatisch.
       // Titel-/URL-Updates dürfen die vom Benutzer gewählte Scrollposition nicht ändern.
@@ -626,6 +634,7 @@
   document.getElementById("home").onclick = () => send("home");
   document.getElementById("hist").onclick = () => send("hist");
   document.getElementById("bmgr").onclick = () => send("bmgr");
+  document.getElementById("updbtn").onclick = () => send("restart");
   document.getElementById("extbtn").onclick = () => send("ext");
   document.getElementById("settings").onclick = () => send("settings");
   translateEl.onclick = () => send("translate");

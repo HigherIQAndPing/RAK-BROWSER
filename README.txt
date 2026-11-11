@@ -224,3 +224,13 @@ den jeweiligen Eintrag erneut; wenn noch kein Verlauf vorhanden ist, erscheint
 ein entsprechender leerer Zustand.
 Die Einträge werden seit Version 0.9.3 fest in zwei Spalten und bis zu vier
 Zeilen dargestellt. Die Karten, Icons und Texte wurden dafür vergrößert.
+
+AUTOMATISCHE UPDATES
+--------------------
+RAK sucht kurz nach dem Start und danach alle 4 Stunden nach einer neuen Version (Releases dieses
+Repositories) und installiert sie im Hintergrund. Danach erscheint in der Leiste "Update - Neustart".
+Akzeptiert werden nur Updates mit gueltiger Ed25519-Signatur (oeffentlicher Schluessel ist in
+src/update.rs eingebaut), passender SHA-256-Pruefsumme und HOEHERER Versionsnummer.
+Voraussetzungen: Das Repository (bzw. REPO in src/update.rs) muss oeffentlich sein, und RAK.exe muss in
+einem beschreibbaren Ordner liegen. Veroeffentlichen: Secret RAK_SIGNING_KEY setzen, Version in
+Cargo.toml erhoehen, dann "git tag vX.Y.Z" und "git push --tags".
