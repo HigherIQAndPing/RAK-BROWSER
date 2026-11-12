@@ -298,3 +298,9 @@ Der Windows-x64-Release verwendet die passende Paketversion 0.11.0. Das portable
 RELEASE 0.12.0
 ---------------
 Dieses Release bündelt die intelligente Omnibox mit URL-/Sucherkennung und lokalen Verlauf-/Lesezeichen-Vorschlägen, den integrierten Werbe- und Trackerschutz mit Zähler und Website-Pausefunktion sowie Picture-in-Picture für aktive HTML5-Videos. Das Windows-x64-ZIP wird im Tag-Workflow aus dem geprüften v0.12.0-Build erstellt.
+
+RELEASE 0.13.0
+---------------
+Der Download-Manager zeigt laufende, erfolgreiche und fehlgeschlagene Downloads auf einer internen Seite an. Dateien werden im Ordner „RAK Downloads“ im Benutzer-Downloadverzeichnis gespeichert und können aus der Liste geöffnet werden.
+
+Mit Strg + Umschalt + T lässt sich der zuletzt geschlossene Web-Tab wiederherstellen; bis zu 20 geschlossene Tabs werden vorgehalten. Mit Strg + Umschalt + A öffnet sich die Tab-Suche. Treffer können nach Titel oder URL gefiltert und direkt aktiviert werden.

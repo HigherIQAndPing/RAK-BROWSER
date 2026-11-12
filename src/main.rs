@@ -53,6 +53,8 @@ const GLOBAL_SHORTCUT_SCRIPT: &str = r#"
     else if (control && !event.shiftKey && event.key.toLowerCase() === 't') command = 'ctrl-t';
     else if (control && !event.shiftKey && event.key.toLowerCase() === 'w') command = 'ctrl-w';
     else if (control && event.shiftKey && event.key.toLowerCase() === 'n') command = 'ctrl-shift-n';
+    else if (control && event.shiftKey && event.key.toLowerCase() === 't') command = 'ctrl-shift-t';
+    else if (control && event.shiftKey && event.key.toLowerCase() === 'a') command = 'ctrl-shift-a';
     if (command && window.ipc && window.ipc.postMessage) {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -166,6 +168,7 @@ enum Kind {
     Settings,
     Passwords,
     Explore,
+    Downloads,
 }
 
 struct Tab {
@@ -175,6 +178,22 @@ struct Tab {
     view: WebView,
     private: bool,
     kind: Kind,
+}
+
+#[derive(Clone)]
+struct ClosedTab {
+    url: String,
+    title: String,
+    private: bool,
+}
+
+#[derive(Clone)]
+struct DownloadEntry {
+    url: String,
+    path: String,
+    name: String,
+    status: String,
+    success: bool,
 }
 
 fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
@@ -232,6 +251,43 @@ fn is_http(u: &str) -> bool {
 
 fn origin_key(u: &str) -> String {
     u.split('/').take(3).collect::<Vec<_>>().join("/").to_ascii_lowercase()
+}
+
+fn download_target(url: &str, suggested: &PathBuf) -> PathBuf {
+    let dir = dirs::download_dir()
+        .or_else(dirs::home_dir)
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("RAK Downloads");
+    let _ = std::fs::create_dir_all(&dir);
+    let raw = suggested.file_name().and_then(|n| n.to_str()).filter(|n| !n.is_empty())
+        .map(str::to_string)
+        .or_else(|| url.split('/').next_back().map(|s| s.split('?').next().unwrap_or(s).to_string()))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "download".into());
+    let safe: String = raw.chars().map(|c| if c.is_control() || "\\/:*?\"<>|".contains(c) { '_' } else { c }).collect();
+    let safe = if safe.is_empty() { "download".into() } else { safe };
+    let mut target = dir.join(&safe);
+    let (stem, ext) = match safe.rsplit_once('.') { Some((a, b)) if !a.is_empty() => (a.to_string(), format!(".{b}")), _ => (safe.clone(), String::new()) };
+    let mut n = 2;
+    while target.exists() {
+        target = dir.join(format!("{stem} ({n}){ext}")); n += 1;
+    }
+    target
+}
+
+fn download_name(path: &str) -> String {
+    PathBuf::from(path).file_name().and_then(|n| n.to_str()).unwrap_or("Download").to_string()
+}
+
+fn open_download(path: &str) {
+    let p = PathBuf::from(path);
+    if !p.is_absolute() || !p.exists() { return; }
+    #[cfg(target_os = "windows")]
+    { let _ = Command::new("explorer").arg(&p).spawn(); }
+    #[cfg(target_os = "macos")]
+    { let _ = Command::new("open").arg(&p).spawn(); }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    { let _ = Command::new("xdg-open").arg(&p).spawn(); }
 }
 
 fn normalize_with_engine(input: &str, engine: &str) -> String {
@@ -341,6 +397,8 @@ struct State {
     blocker_paused: HashSet<String>,
     blocked_counts: HashMap<u32, u32>,
     pip_available: HashSet<u32>,
+    closed_tabs: Vec<ClosedTab>,
+    downloads: Vec<DownloadEntry>,
 }
 
 impl State {
@@ -514,6 +572,9 @@ impl State {
                 Kind::Extensions => ext::data_json(),
                 Kind::Settings => json!({ "settings": self.store.settings }),
                 Kind::Passwords => json!({ "vault": self.passwords.status(), "credentials": self.passwords.list().unwrap_or_default() }),
+                Kind::Downloads => json!(self.downloads.iter().map(|d| json!({
+                    "name": d.name, "url": d.url, "path": d.path, "status": d.status, "success": d.success
+                })).collect::<Vec<_>>()),
                 _ => self.store.bookmarks_json(),
             };
             let _ = t
@@ -537,6 +598,8 @@ impl State {
         let p_load = self.proxy.clone();
         let p_new = self.proxy.clone();
         let p_shortcut = self.proxy.clone();
+        let p_download_started = self.proxy.clone();
+        let p_download_completed = self.proxy.clone();
         let builder = new_builder()
             .with_bounds(rect(x, UI_HEIGHT, w - x, h - UI_HEIGHT))
             .with_url(url)
@@ -563,6 +626,15 @@ impl State {
                 });
                 false // kein eigenes Fenster, die Adresse öffnet in einem neuen Tab
             })
+            .with_download_started_handler(move |url, path| {
+                let target = download_target(&url, path);
+                *path = target.clone();
+                let _ = p_download_started.send_event(UserEvent::DownloadStarted { url, path: target.to_string_lossy().into_owned() });
+                true
+            })
+            .with_download_completed_handler(move |url, path, success| {
+                let _ = p_download_completed.send_event(UserEvent::DownloadCompleted { url, path: path.map(|p| p.to_string_lossy().into_owned()), success });
+            })
             .with_ipc_handler(move |req| {
                 let body = req.body();
                 if body.starts_with("context-open:")
@@ -574,6 +646,8 @@ impl State {
                     || body == "shortcut:ctrl-t"
                     || body == "shortcut:ctrl-w"
                     || body == "shortcut:ctrl-shift-n"
+                    || body == "shortcut:ctrl-shift-t"
+                    || body == "shortcut:ctrl-shift-a"
                 {
                     let routed = if let Some(rest) = body.strip_prefix("passwords-request:") {
                         format!("passwords-request-id:{id}:{rest}")
@@ -605,6 +679,7 @@ impl State {
             ),
             Kind::Passwords => include_str!("passwords.html").to_string(),
             Kind::Explore => include_str!("explore.html").replace("__LAND_DATA__", include_str!("ne_110m_land.geojson")),
+            Kind::Downloads => include_str!("downloads.html").to_string(),
             _ => self.store.bookmarks_page(),
         };
         let p_ipc = self.proxy.clone();
@@ -711,6 +786,10 @@ impl State {
         if ids.is_empty() {
             return false;
         }
+        for t in self.tabs.iter().filter(|t| ids.contains(&t.id) && t.kind == Kind::Web) {
+            self.closed_tabs.push(ClosedTab { url: t.url.clone(), title: t.title.clone(), private: t.private });
+        }
+        if self.closed_tabs.len() > 20 { let keep = self.closed_tabs.len() - 20; self.closed_tabs.drain(0..keep); }
         let old_index = self
             .tabs
             .iter()
@@ -733,6 +812,13 @@ impl State {
         false
     }
 
+    fn restore_closed_tab(&mut self, window: &Window) {
+        let Some(closed) = self.closed_tabs.pop() else { return; };
+        let id = self.next_id;
+        self.new_web_tab(window, &closed.url, closed.private);
+        if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id) { t.title = closed.title; }
+    }
+
     fn open_internal(&mut self, window: &Window, kind: Kind) {
         if let Some(t) = self.tabs.iter().find(|t| t.kind == kind) {
             self.active = t.id;
@@ -753,6 +839,7 @@ impl State {
                 Kind::Settings => ("Einstellungen", "rak://einstellungen"),
                 Kind::Passwords => ("Passwörter", "browser://passwords"),
                 Kind::Explore => ("Explore", "browser://explore"),
+                Kind::Downloads => ("Downloads", "browser://downloads"),
                 _ => ("Lesezeichen", "rak://lesezeichen"),
             };
             self.tabs.push(Tab {
@@ -899,6 +986,22 @@ impl State {
                 self.push_update();
                 return false;
             }
+            UserEvent::DownloadStarted { url, path } => {
+                self.downloads.insert(0, DownloadEntry { name: download_name(&path), url, path, status: "Lädt …".into(), success: false });
+                self.downloads.truncate(50);
+                self.push_internal();
+            }
+            UserEvent::DownloadCompleted { url, path, success } => {
+                let path = path.unwrap_or_default();
+                if let Some(d) = self.downloads.iter_mut().find(|d| d.path == path || d.url == url) {
+                    d.status = if success { "Abgeschlossen".into() } else { "Fehlgeschlagen".into() };
+                    d.success = success;
+                    if !path.is_empty() { d.path = path; d.name = download_name(&d.path); }
+                } else {
+                    self.downloads.insert(0, DownloadEntry { name: download_name(&path), url, path, status: if success { "Abgeschlossen".into() } else { "Fehlgeschlagen".into() }, success });
+                }
+                self.push_internal();
+            }
             UserEvent::Title(id, title) => {
                 if let Some(t) = self
                     .tabs
@@ -1044,6 +1147,8 @@ impl State {
                         return true;
                     }
                 }
+                "ctrl-shift-t" => self.restore_closed_tab(window),
+                "ctrl-shift-a" => { let _ = self.ui.evaluate_script("window.rak && window.rak.openTabSearch();"); }
                 _ => {}
             },
             "restart" => {
@@ -1164,6 +1269,7 @@ impl State {
                 "rak://einstellungen" => self.open_internal(window, Kind::Settings),
                 "rak://passwoerter" | "browser://passwords" => self.open_internal(window, Kind::Passwords),
                 "browser://explore" => self.open_internal(window, Kind::Explore),
+                "browser://downloads" => self.open_internal(window, Kind::Downloads),
                 other => {
                     let url = normalize_with_engine(other, &self.store.settings.search_engine);
                     if self.tabs.iter().any(|t| t.id == self.active && t.kind == Kind::Home) {
@@ -1177,6 +1283,9 @@ impl State {
             "settings" => self.open_internal(window, Kind::Settings),
             "passwords" => self.open_internal(window, Kind::Passwords),
             "explore" => self.open_internal(window, Kind::Explore),
+            "downloads" => self.open_internal(window, Kind::Downloads),
+            "restore" => self.restore_closed_tab(window),
+            "tab-search" => { let _ = self.ui.evaluate_script("window.rak && window.rak.openTabSearch();"); },
             "translate" => {
                 if let Some(url) = self
                     .tabs
@@ -1345,8 +1454,8 @@ impl State {
                 Some("new") => self.new_web_tab(
                     window,
                     search_home(&self.store.settings.search_engine),
-                    false,
-                ),
+                false,
+            ),
                 Some("newp") => self.new_web_tab(
                     window,
                     search_home(&self.store.settings.search_engine),
@@ -1355,6 +1464,10 @@ impl State {
                 Some("settings") => self.open_internal(window, Kind::Settings),
                 _ => {}
             },
+            Some("download_open") => {
+                if let Some(path) = v["path"].as_str() { open_download(path); }
+            }
+            Some("download_ready") => self.push_internal(),
             Some("password_unlock") => { let _ = self.passwords.unlock(v["password"].as_str()); }
             Some("password_lock") => self.passwords.lock(),
             Some("password_master_enable") => { let _ = self.passwords.enable_master(v["password"].as_str().unwrap_or("")); }
@@ -1558,6 +1671,8 @@ fn main() -> wry::Result<()> {
         blocker_paused: HashSet::new(),
         blocked_counts: HashMap::new(),
         pip_available: HashSet::new(),
+        closed_tabs: Vec::new(),
+        downloads: Vec::new(),
     };
     // Tabs der letzten Sitzung wiederherstellen, sonst Startseite
     let (urls, active) = store::load_session();

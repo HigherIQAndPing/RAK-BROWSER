@@ -113,6 +113,12 @@
   .suggestion .sbody { min-width:0; flex:1; }.suggestion .stitle,.suggestion .surl { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.suggestion .surl { color:var(--dim); font-size:11px; margin-top:2px; }
   #shield { position:relative; }.badge { position:absolute; top:-3px; right:-3px; min-width:14px; height:14px; padding:0 3px; border-radius:8px; background:#ff6b79; color:#160a0e; font-size:9px; line-height:14px; font-weight:800; display:none; }
   #security-pop { position:absolute; top:calc(100% + 6px); right:95px; z-index:60; width:260px; padding:13px; display:none; background:var(--panel2); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px #0008; }.pop-title{font-weight:700;margin-bottom:7px}.pop-row{display:flex;justify-content:space-between;gap:10px;align-items:center;color:var(--dim);font-size:12px}.pop-row strong{color:var(--text)}.pop-toggle{margin-top:10px;width:100%;}
+  #tab-search-pop { position:absolute; top:42px; left:70px; z-index:70; display:none; width:min(380px,calc(100vw - 90px)); padding:10px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px #0008; }
+  #tab-search-input { width:100%; margin-bottom:7px; }
+  #tab-search-list { display:grid; gap:3px; max-height:300px; overflow:auto; }
+  .tab-result { display:flex; gap:8px; align-items:center; width:100%; padding:8px; color:var(--text); background:transparent; border:0; border-radius:6px; text-align:left; cursor:pointer; }
+  .tab-result:hover,.tab-result.active { background:var(--panel); }
+  .tab-result .tab-result-text { min-width:0; flex:1; }.tab-result .tab-result-title,.tab-result .tab-result-url { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.tab-result .tab-result-url { color:var(--dim); font-size:11px; margin-top:2px; }
 </style>
 </head>
 <body>
@@ -122,6 +128,7 @@
     <div id="tab-scroll"><div id="tab-list" role="tablist" aria-label="Offene Tabs und Tab-Inseln"></div></div>
     <button class="tabbtn scrollbtn" id="scroll-right" aria-label="Tabs nach rechts scrollen" title="Tabs nach rechts scrollen">›</button>
     <button class="tabbtn" id="group-tabs" aria-label="Ausgewählte Tabs gruppieren" title="Tabs auswählen / gruppieren"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M9 5v14M15 5v14"/></svg><span id="selection-count"></span></button>
+    <button class="tabbtn" id="tab-search" aria-label="Tabs durchsuchen (Strg+Umschalt+A)" title="Tabs durchsuchen (Strg+Umschalt+A)">⌕</button>
     <button class="tabbtn" id="newtab" aria-label="Neuer Tab (Strg+T)" title="Neuer Tab (Strg+T)">+</button>
     <button class="tabbtn" id="privtab" aria-label="Neuer privater Tab (Strg+Umschalt+N)" title="Neuer privater Tab (Strg+Umschalt+N)"></button>
   </div>
@@ -138,11 +145,13 @@
     <button class="btn" id="explore" title="Zufälliger Ort entdecken" aria-label="Zufälliger Ort entdecken"></button>
     <button class="btn" id="shield" title="Werbe- und Trackerschutz" aria-label="Werbe- und Trackerschutz"><span class="badge" id="shield-badge"></span></button>
     <button class="btn" id="pip" title="Bild-in-Bild" aria-label="Bild-in-Bild" hidden></button>
+    <button class="btn" id="downloads" title="Downloads" aria-label="Downloads">⇩</button>
     <button class="btn" id="extbtn" title="Erweiterungen"></button>
     <button class="btn" id="translate" title="Aktuelle Seite übersetzen" aria-label="Aktuelle Seite übersetzen">文</button>
     <button class="btn" id="settings" title="Einstellungen" aria-label="Einstellungen"></button>
   </div>
   <div id="bm"></div>
+  <div id="tab-search-pop"><input id="tab-search-input" class="url-input" placeholder="Tabs durchsuchen …" autocomplete="off"><div id="tab-search-list"></div></div>
   <div id="security-pop"><div class="pop-title">Werbe- und Trackerschutz</div><div class="pop-row"><span>Auf dieser Seite blockiert</span><strong id="blocked-count">0</strong></div><button class="btn pop-toggle" id="blocker-toggle">Für diese Website pausieren</button></div>
   <div id="tab-status" class="sr-only" role="status" aria-live="polite"></div>
 <script>
@@ -174,7 +183,7 @@
   };
 
   const state = { tabs: [], active: 0, islands: [], selected: new Set(), anchor: null, context: null, dragIds: [],
-    bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null, suggestions: [], suggestionIndex: -1, blocked: 0, blockerPaused: false, pip: false };
+    bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null, suggestions: [], suggestionIndex: -1, blocked: 0, blockerPaused: false, pip: false, tabSearchOpen: false };
   const tabsEl = document.getElementById("tab-list");
   const tabScroll = document.getElementById("tab-scroll");
   const groupButton = document.getElementById("group-tabs");
@@ -182,6 +191,9 @@
   const starEl = document.getElementById("star");
   const translateEl = document.getElementById("translate");
   const bmEl = document.getElementById("bm");
+  const tabSearchPop = document.getElementById("tab-search-pop");
+  const tabSearchInput = document.getElementById("tab-search-input");
+  const tabSearchList = document.getElementById("tab-search-list");
   document.getElementById("privtab").innerHTML = ICON.mask;
   document.getElementById("hist").innerHTML = ICON.hist;
   document.getElementById("bmgr").innerHTML = ICON.folder;
@@ -585,6 +597,7 @@
       if (state.context && ((state.context.type === "tabs" && !state.selected.size) ||
         (state.context.type !== "tabs" && !islandById(state.context.id)))) state.context = null;
       renderTabs(oldActive !== active || oldTarget !== visibleActiveKey()); updateStar();
+      if (state.tabSearchOpen) renderTabSearch();
       if (oldContext !== contextKey()) renderBm();
       const t = activeTab();
       translateEl.disabled = !t || !isHttp(t.url) || t.url.startsWith('https://translate.google.com/');
@@ -612,7 +625,8 @@
       const badge = document.getElementById("shield-badge"); badge.textContent = state.blocked > 99 ? "99+" : String(state.blocked); badge.style.display = state.blocked ? "block" : "none";
       document.getElementById("blocked-count").textContent = String(state.blocked); document.getElementById("blocker-toggle").textContent = state.blockerPaused ? "Schutz für diese Website aktivieren" : "Für diese Website pausieren";
       document.getElementById("pip").hidden = !state.pip;
-    }
+    },
+    openTabSearch
   };
 
   function renderSuggestions() {
@@ -620,6 +634,15 @@
     if (!query || !state.suggestions.length || document.activeElement !== urlEl) { box.style.display = "none"; return; }
     state.suggestions.slice(0,5).forEach((x,i)=>{const b=el("button","suggestion"+(i===state.suggestionIndex?" selected":""));b.innerHTML='<span class="favicon">'+(x.url?.startsWith("https://")?"🔒":"🌐")+'</span><span class="sbody"><span class="stitle"></span><span class="surl"></span></span>';b.querySelector('.stitle').textContent=x.title||x.url;b.querySelector('.surl').textContent=x.url;b.onclick=()=>{urlEl.value=x.url;send("nav:"+x.url);box.style.display="none"};box.appendChild(b)}); box.style.display="block";
   }
+
+  function renderTabSearch() {
+    const q = tabSearchInput.value.trim().toLowerCase(); tabSearchList.replaceChildren();
+    const items = state.tabs.filter(t => !q || (t.title || "").toLowerCase().includes(q) || (t.url || "").toLowerCase().includes(q));
+    if (!items.length) { tabSearchList.appendChild(el("div", "tab-result-url", "Keine passenden Tabs")); return; }
+    items.forEach(t => { const b=el("button","tab-result"+(t.id===state.active?" active":"")); b.innerHTML='<span>'+(t.private?'◉':'●')+'</span><span class="tab-result-text"><span class="tab-result-title"></span><span class="tab-result-url"></span></span>'; b.querySelector('.tab-result-title').textContent=t.title||t.url||'Neuer Tab'; b.querySelector('.tab-result-url').textContent=t.url; b.onclick=()=>{send('switch:'+t.id);closeTabSearch()}; tabSearchList.appendChild(b); });
+  }
+  function openTabSearch() { state.tabSearchOpen=true; tabSearchPop.style.display='block'; tabSearchInput.value=''; renderTabSearch(); tabSearchInput.focus(); }
+  function closeTabSearch() { state.tabSearchOpen=false; tabSearchPop.style.display='none'; }
 
   // ---- Bedienung ----
   document.getElementById("newtab").onclick = () => send("new");
@@ -660,6 +683,8 @@
     if (ctrl && !e.altKey && key === "t" && !e.shiftKey) command = "new";
     else if (ctrl && !e.altKey && key === "n" && e.shiftKey) command = "newp";
     else if (ctrl && !e.altKey && key === "w" && !e.shiftKey && activeTab()) command = "close:" + state.active;
+    else if (ctrl && !e.altKey && key === "t" && e.shiftKey) command = "restore";
+    else if (ctrl && !e.altKey && key === "a" && e.shiftKey) command = "tab-search";
     else if (ctrl && !e.altKey && key === "tab" && state.tabs.length) {
       const index = state.tabs.findIndex(t => t.id === state.active);
       const next = (Math.max(index,0) + (e.shiftKey ? -1 : 1) + state.tabs.length) % state.tabs.length;
@@ -668,7 +693,8 @@
       const t = activeTab(); if (t && t.island != null && islandById(t.island)) command = "island-new:" + t.island;
     } else if (key === "escape") {
       e.preventDefault(); state.selected.clear(); state.anchor = null; refreshSelection();
-      if (state.context) closeContext(true);
+      if (state.tabSearchOpen) closeTabSearch();
+      else if (state.context) closeContext(true);
       else if (state.adding) { state.adding = null; renderBm(); }
       announce("Tab-Auswahl aufgehoben"); return;
     }
@@ -685,9 +711,13 @@
   document.getElementById("updbtn").onclick = () => send("restart");
   document.getElementById("extbtn").onclick = () => send("ext");
   document.getElementById("explore").onclick = () => send("explore");
+  document.getElementById("tab-search").onclick = () => state.tabSearchOpen ? closeTabSearch() : openTabSearch();
+  document.getElementById("downloads").onclick = () => send("downloads");
   document.getElementById("shield").onclick = () => { const p=document.getElementById("security-pop"); p.style.display=p.style.display==="block"?"none":"block"; };
   document.getElementById("blocker-toggle").onclick = () => { const t=activeTab(); if(t) send("blocker-toggle:"+encodeURIComponent(t.url)); document.getElementById("security-pop").style.display="none"; };
   document.getElementById("pip").onclick = () => send("pip-toggle");
+  tabSearchInput.addEventListener("input", renderTabSearch);
+  tabSearchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); closeTabSearch(); } });
   document.getElementById("settings").onclick = () => send("settings");
   translateEl.onclick = () => send("translate");
   starEl.onclick = () => {
