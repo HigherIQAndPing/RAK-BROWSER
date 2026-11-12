@@ -13,6 +13,7 @@ mod passwords;
 use islands::TabIslands;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::process::Command;
 use store::Store;
 use tao::{
@@ -156,6 +157,8 @@ enum UserEvent {
     Update(Option<String>),
     /// Nach Abschluss des nativen Vollbildwechsels die WebView-Geometrie erneut anwenden.
     Relayout,
+    DownloadStarted { url: String, path: String },
+    DownloadCompleted { url: String, path: Option<String>, success: bool },
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -1166,7 +1169,21 @@ impl State {
             }
             "nav" => {
                 let input = urlencoding::decode(arg).map(|v| v.into_owned()).unwrap_or_else(|_| arg.to_string());
-                if !input.trim().is_empty() { let url = normalize_with_engine(&input, &self.store.settings.search_engine); self.navigate_active(window, &url); }
+                match input.trim() {
+                    "rak://start" => self.open_internal(window, Kind::Home),
+                    "rak://verlauf" => self.open_internal(window, Kind::History),
+                    "rak://lesezeichen" => self.open_internal(window, Kind::Bookmarks),
+                    "rak://erweiterungen" => self.open_internal(window, Kind::Extensions),
+                    "rak://einstellungen" => self.open_internal(window, Kind::Settings),
+                    "rak://passwoerter" | "browser://passwords" => self.open_internal(window, Kind::Passwords),
+                    "browser://explore" => self.open_internal(window, Kind::Explore),
+                    "browser://downloads" => self.open_internal(window, Kind::Downloads),
+                    other if !other.is_empty() => {
+                        let url = normalize_with_engine(other, &self.store.settings.search_engine);
+                        if self.tabs.iter().any(|t| t.id == self.active && t.kind == Kind::Home) { self.new_web_tab(window, &url, false); } else { self.navigate_active(window, &url); }
+                    }
+                    _ => {}
+                }
             }
             "suggest" => {
                 let q = urlencoding::decode(arg).map(|v| v.to_lowercase()).unwrap_or_default();
@@ -1261,24 +1278,6 @@ impl State {
                     }
                 }
             }
-            "nav" => match arg.trim() {
-                "rak://start" => self.open_internal(window, Kind::Home),
-                "rak://verlauf" => self.open_internal(window, Kind::History),
-                "rak://lesezeichen" => self.open_internal(window, Kind::Bookmarks),
-                "rak://erweiterungen" => self.open_internal(window, Kind::Extensions),
-                "rak://einstellungen" => self.open_internal(window, Kind::Settings),
-                "rak://passwoerter" | "browser://passwords" => self.open_internal(window, Kind::Passwords),
-                "browser://explore" => self.open_internal(window, Kind::Explore),
-                "browser://downloads" => self.open_internal(window, Kind::Downloads),
-                other => {
-                    let url = normalize_with_engine(other, &self.store.settings.search_engine);
-                    if self.tabs.iter().any(|t| t.id == self.active && t.kind == Kind::Home) {
-                        self.new_web_tab(window, &url, false);
-                    } else {
-                        self.navigate_active(window, &url);
-                    }
-                }
-            },
             "home" => self.open_internal(window, Kind::Home),
             "settings" => self.open_internal(window, Kind::Settings),
             "passwords" => self.open_internal(window, Kind::Passwords),
