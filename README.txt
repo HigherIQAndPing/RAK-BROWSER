@@ -294,3 +294,7 @@ Die Schutzfilterung ist eine lokale, heuristische Domainliste und ersetzt keine 
 RELEASE 0.11.0
 ---------------
 Der Windows-x64-Release verwendet die passende Paketversion 0.11.0. Das portable ZIP wird im Tag-Workflow aus der geprüften Release-EXE erzeugt und enthält RAK.exe, start.bat, README.txt und setup-webview2.bat. Tag, Cargo-Version und Build werden vor dem Upload miteinander verglichen.
+
+RELEASE 0.12.0
+---------------
+Dieses Release bündelt die intelligente Omnibox mit URL-/Sucherkennung und lokalen Verlauf-/Lesezeichen-Vorschlägen, den integrierten Werbe- und Trackerschutz mit Zähler und Website-Pausefunktion sowie Picture-in-Picture für aktive HTML5-Videos. Das Windows-x64-ZIP wird im Tag-Workflow aus dem geprüften v0.12.0-Build erstellt.

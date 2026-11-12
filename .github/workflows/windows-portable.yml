@@ -244,6 +244,13 @@ jobs:
           * Das ZIP enthält die zu diesem Tag gehörende RAK.exe sowie start.bat, README.txt und setup-webview2.bat.
           * Die Release-Prüfung stellt sicher, dass Tag, Cargo-Version und portable Build-Dateien zusammenpassen.
           '@
+            'v0.12.0' = @'
+          ### Diese Version
+          * Intelligente Omnibox erkennt URLs und Suchanfragen und bietet lokale Verlauf-/Lesezeichen-Vorschläge.
+          * Integrierter Werbe- und Trackerschutz mit Zähler und Website-spezifischer Pausefunktion.
+          * Picture-in-Picture für aktive HTML5-Videos über die native WebView-Schnittstelle.
+          * Windows-x64-ZIP wird aus dem geprüften v0.12.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }
