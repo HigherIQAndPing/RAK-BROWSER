@@ -238,6 +238,12 @@ jobs:
           * Integrierter Werbe- und Trackerschutz mit blockierter Ressourcenanzahl und Website-spezifischer Pausefunktion.
           * Picture-in-Picture-Schaltfläche für aktive HTML5-Videos über die native WebView-Schnittstelle.
           '@
+            'v0.11.0' = @'
+          ### Diese Version
+          * Korrigierter Windows-x64-Release mit passender Paketversion 0.11.0.
+          * Das ZIP enthält die zu diesem Tag gehörende RAK.exe sowie start.bat, README.txt und setup-webview2.bat.
+          * Die Release-Prüfung stellt sicher, dass Tag, Cargo-Version und portable Build-Dateien zusammenpassen.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

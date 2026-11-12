@@ -290,3 +290,7 @@ Der integrierte Werbe- und Trackerschutz filtert bekannte Werbe-, Analyse- und T
 Das Bild-in-Bild-Symbol erscheint automatisch, sobald ein aktives Video erkannt wird. Ein Klick verwendet die native requestPictureInPicture()-Schnittstelle. Die neuen Funktionen sind responsiv in die bestehende Toolbar integriert.
 
 Die Schutzfilterung ist eine lokale, heuristische Domainliste und ersetzt keine vollständige Filterlisten-Erweiterung. Webseiten können außerdem Bild-in-Bild durch Browser- oder Plattformrichtlinien einschränken.
+
+RELEASE 0.11.0
+---------------
+Der Windows-x64-Release verwendet die passende Paketversion 0.11.0. Das portable ZIP wird im Tag-Workflow aus der geprüften Release-EXE erzeugt und enthält RAK.exe, start.bat, README.txt und setup-webview2.bat. Tag, Cargo-Version und Build werden vor dem Upload miteinander verglichen.
