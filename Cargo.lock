@@ -1985,7 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "rak"
-version = "0.9.10"
+version = "0.11.0"
 dependencies = [
  "aes-gcm",
  "argon2",
