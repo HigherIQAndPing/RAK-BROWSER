@@ -119,6 +119,9 @@
   .tab-result { display:flex; gap:8px; align-items:center; width:100%; padding:8px; color:var(--text); background:transparent; border:0; border-radius:6px; text-align:left; cursor:pointer; }
   .tab-result:hover,.tab-result.active { background:var(--panel); }
   .tab-result .tab-result-text { min-width:0; flex:1; }.tab-result .tab-result-title,.tab-result .tab-result-url { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.tab-result .tab-result-url { color:var(--dim); font-size:11px; margin-top:2px; }
+  #permission-pop { position:absolute; top:calc(100% + 6px); right:48px; z-index:61; width:310px; padding:13px; display:none; background:var(--panel2); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px #0008; }
+  .permission-row { display:grid; grid-template-columns:1fr auto; gap:7px; align-items:center; padding:8px 0; border-top:1px solid #ffffff12; }
+  .permission-row:first-child { border-top:0; }.permission-name{font-size:12px;color:var(--text)}.permission-state{font-size:11px;color:var(--dim)}.permission-actions{display:flex;gap:4px}.permission-actions button{border:0;border-radius:6px;padding:5px 7px;background:var(--panel);color:var(--text);cursor:pointer;font-size:11px}.permission-actions button.active{background:var(--accent);color:#0d0d12;font-weight:700}
 </style>
 </head>
 <body>
@@ -144,6 +147,8 @@
     <button class="btn" id="updbtn" title="">Update – Neustart</button>
     <button class="btn" id="explore" title="Zufälliger Ort entdecken" aria-label="Zufälliger Ort entdecken"></button>
     <button class="btn" id="shield" title="Werbe- und Trackerschutz" aria-label="Werbe- und Trackerschutz"><span class="badge" id="shield-badge"></span></button>
+    <button class="btn" id="permissions" title="Website-Berechtigungen" aria-label="Website-Berechtigungen">♧</button>
+    <button class="btn" id="reader" title="Lesemodus" aria-label="Lesemodus" hidden>▤</button>
     <button class="btn" id="pip" title="Bild-in-Bild" aria-label="Bild-in-Bild" hidden></button>
     <button class="btn" id="downloads" title="Downloads" aria-label="Downloads">⇩</button>
     <button class="btn" id="extbtn" title="Erweiterungen"></button>
@@ -153,6 +158,7 @@
   <div id="bm"></div>
   <div id="tab-search-pop"><input id="tab-search-input" class="url-input" placeholder="Tabs durchsuchen …" autocomplete="off"><div id="tab-search-list"></div></div>
   <div id="security-pop"><div class="pop-title">Werbe- und Trackerschutz</div><div class="pop-row"><span>Auf dieser Seite blockiert</span><strong id="blocked-count">0</strong></div><button class="btn pop-toggle" id="blocker-toggle">Für diese Website pausieren</button></div>
+  <div id="permission-pop"><div class="pop-title">Website-Berechtigungen</div><div class="pop-row"><span id="permission-origin">Keine Website</span></div><div id="permission-list"></div></div>
   <div id="tab-status" class="sr-only" role="status" aria-live="polite"></div>
 <script>
   const send = (m) => {
@@ -183,7 +189,7 @@
   };
 
   const state = { tabs: [], active: 0, islands: [], selected: new Set(), anchor: null, context: null, dragIds: [],
-    bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null, suggestions: [], suggestionIndex: -1, blocked: 0, blockerPaused: false, pip: false, tabSearchOpen: false };
+    bm: { bookmarks: [], folders: [] }, bmKey: "", folder: null, adding: null, settings: null, suggestions: [], suggestionIndex: -1, blocked: 0, blockerPaused: false, pip: false, reader: false, origin: "", permissions: {}, permissionRequest: null, tabSearchOpen: false };
   const tabsEl = document.getElementById("tab-list");
   const tabScroll = document.getElementById("tab-scroll");
   const groupButton = document.getElementById("group-tabs");
@@ -194,6 +200,8 @@
   const tabSearchPop = document.getElementById("tab-search-pop");
   const tabSearchInput = document.getElementById("tab-search-input");
   const tabSearchList = document.getElementById("tab-search-list");
+  const permissionPop = document.getElementById("permission-pop");
+  const permissionList = document.getElementById("permission-list");
   document.getElementById("privtab").innerHTML = ICON.mask;
   document.getElementById("hist").innerHTML = ICON.hist;
   document.getElementById("bmgr").innerHTML = ICON.folder;
@@ -618,15 +626,18 @@
       state.suggestions = Array.isArray(items) ? items : []; state.suggestionIndex = -1; renderSuggestions();
     },
     setPageStatus(status) {
-      state.blocked = Number(status?.blocked || 0); state.blockerPaused = !!status?.paused; state.pip = !!status?.pip;
+      state.blocked = Number(status?.blocked || 0); state.blockerPaused = !!status?.paused; state.pip = !!status?.pip; state.reader = !!status?.reader; state.origin = status?.origin || ""; state.permissions = status?.permissions || {};
       const mark = document.getElementById("security-mark"), url = activeTab()?.url || "";
       mark.textContent = /^https:\/\//i.test(url) ? "🔒" : /^http:\/\//i.test(url) ? "⚠" : "◌";
       mark.title = /^https:\/\//i.test(url) ? "Verschlüsselte Verbindung" : /^http:\/\//i.test(url) ? "Unverschlüsselte Verbindung" : "";
       const badge = document.getElementById("shield-badge"); badge.textContent = state.blocked > 99 ? "99+" : String(state.blocked); badge.style.display = state.blocked ? "block" : "none";
       document.getElementById("blocked-count").textContent = String(state.blocked); document.getElementById("blocker-toggle").textContent = state.blockerPaused ? "Schutz für diese Website aktivieren" : "Für diese Website pausieren";
       document.getElementById("pip").hidden = !state.pip;
+      document.getElementById("reader").hidden = !state.reader;
+      renderPermissions();
     },
-    openTabSearch
+    openTabSearch,
+    setPermissionRequest(request) { state.permissionRequest = request || null; permissionPop.style.display = "block"; renderPermissions(); }
   };
 
   function renderSuggestions() {
@@ -643,6 +654,13 @@
   }
   function openTabSearch() { state.tabSearchOpen=true; tabSearchPop.style.display='block'; tabSearchInput.value=''; renderTabSearch(); tabSearchInput.focus(); }
   function closeTabSearch() { state.tabSearchOpen=false; tabSearchPop.style.display='none'; }
+  const permissionLabels = { geolocation:"Standort", camera:"Kamera", microphone:"Mikrofon", notifications:"Benachrichtigungen" };
+  function renderPermissions() {
+    document.getElementById("permission-origin").textContent = state.origin || "Keine Website";
+    permissionList.replaceChildren();
+    Object.entries(permissionLabels).forEach(([kind,label])=>{ const value=state.permissions[kind]; const row=el("div","permission-row"); row.innerHTML='<div><div class="permission-name"></div><div class="permission-state"></div></div><div class="permission-actions"><button data-v="allow">Erlauben</button><button data-v="deny">Blockieren</button></div>'; row.querySelector('.permission-name').textContent=label; row.querySelector('.permission-state').textContent=value===true?'Erlaubt':value===false?'Blockiert':'Nicht festgelegt'; row.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',(b.dataset.v==='allow'&&value===true)||(b.dataset.v==='deny'&&value===false));b.onclick=()=>{if(!state.origin)return;send('permission-set:'+encodeURIComponent(state.origin)+':'+kind+':'+b.dataset.v);state.permissions[kind]=b.dataset.v==='allow';renderPermissions()}}); permissionList.appendChild(row); });
+    if(state.permissionRequest){const r=state.permissionRequest;const note=el("div","hint",`Diese Seite fragt ${permissionLabels[r.type]||r.type} an.`);note.style.marginTop='9px';permissionList.prepend(note)}
+  }
 
   // ---- Bedienung ----
   document.getElementById("newtab").onclick = () => send("new");
@@ -714,6 +732,8 @@
   document.getElementById("tab-search").onclick = () => state.tabSearchOpen ? closeTabSearch() : openTabSearch();
   document.getElementById("downloads").onclick = () => send("downloads");
   document.getElementById("shield").onclick = () => { const p=document.getElementById("security-pop"); p.style.display=p.style.display==="block"?"none":"block"; };
+  document.getElementById("permissions").onclick = () => { permissionPop.style.display=permissionPop.style.display==="block"?"none":"block"; renderPermissions(); };
+  document.getElementById("reader").onclick = () => send("reader-toggle");
   document.getElementById("blocker-toggle").onclick = () => { const t=activeTab(); if(t) send("blocker-toggle:"+encodeURIComponent(t.url)); document.getElementById("security-pop").style.display="none"; };
   document.getElementById("pip").onclick = () => send("pip-toggle");
   tabSearchInput.addEventListener("input", renderTabSearch);

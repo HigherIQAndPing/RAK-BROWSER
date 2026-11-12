@@ -128,6 +128,26 @@ const PROTECTION_SCRIPT: &str = r#"
 (function(){if(window.__rakProtection)return;window.__rakProtection=true;const bad=/(doubleclick|googlesyndication|google-analytics|googletagmanager|facebook\.net\/.*(pixel|tr)|connect\.facebook|adservice|adsystem|adnxs|taboola|outbrain|scorecardresearch|hotjar|mixpanel|segment\.io|clarity\.ms)/i;let n=0,paused=false;const post=x=>{try{window.ipc&&window.ipc.postMessage(x)}catch(_){}};const count=()=>{if(paused)return;document.querySelectorAll('script[src],img[src],iframe[src],link[href]').forEach(e=>{const u=e.src||e.href;if(bad.test(u)&&!e.dataset.rakBlocked){e.dataset.rakBlocked='1';n++;if(e.tagName==='SCRIPT')e.remove();else e.style.display='none'}});post('blocker-count:'+n)};const oldFetch=window.fetch;if(oldFetch)window.fetch=function(...a){const u=String(a[0]?.url||a[0]||'');if(!paused&&bad.test(u)){n++;post('blocker-count:'+n);return Promise.reject(new Error('RAK blocker'))}return oldFetch.apply(this,a)};const oldOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...r){if(!paused&&bad.test(String(u))){this.__rakBlocked=true;n++;post('blocker-count:'+n)}return oldOpen.call(this,m,this.__rakBlocked?'about:blank':u,...r)};window.__rakProtectionSetPaused=x=>{paused=!!x;post('blocker-count:'+n)};window.__rakPipAvailable=()=>{const active=[...document.querySelectorAll('video')].some(v=>!v.paused&&!v.ended&&v.readyState>2);post('pip-available:'+(active?'1':'0'))};window.__rakPipToggle=async()=>{const v=[...document.querySelectorAll('video')].find(v=>!v.paused&&!v.ended)||document.querySelector('video');if(!v)return;if(document.pictureInPictureElement)await document.exitPictureInPicture();else if(v.requestPictureInPicture)await v.requestPictureInPicture();window.__rakPipAvailable()};new MutationObserver(count).observe(document.documentElement,{subtree:true,childList:true});setInterval(window.__rakPipAvailable,1000);count();window.__rakPipAvailable()})();
 "#;
 
+const PERMISSION_READER_SCRIPT: &str = r#"
+(function(){
+  if(window.__rakPermissionReader)return; window.__rakPermissionReader=true;
+  const tabId=__RAK_TAB_ID__, post=m=>{try{window.ipc&&window.ipc.postMessage(m)}catch(_){}}, origin=location.origin;
+  const state={}; window.__rakPermissions=state;
+  const allowed=t=>state[t]===true;
+  const ask=t=>post('permission-request:'+tabId+':'+t+':'+encodeURIComponent(origin));
+  const deny=()=>{const e=new DOMException('Permission denied','NotAllowedError');return Promise.reject(e)};
+  const geo=navigator.geolocation;
+  if(geo){navigator.geolocation={getCurrentPosition:(ok,bad,opt)=>allowed('geolocation')?geo.getCurrentPosition(ok,bad,opt):(ask('geolocation'),bad&&bad({code:1,message:'Permission denied'})),watchPosition:(ok,bad,opt)=>allowed('geolocation')?geo.watchPosition(ok,bad,opt):(ask('geolocation'),-1),clearWatch:id=>geo.clearWatch(id)};}
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){const gum=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=c=>allowed('camera')||allowed('microphone')?gum(c):(ask(c&&c.video?'camera':'microphone'),deny())}
+  if(window.Notification){const request=Notification.requestPermission.bind(Notification);Notification.requestPermission=()=>allowed('notifications')?request(): (ask('notifications'),Promise.resolve('denied'));}
+  window.__rakSetPermission=(t,v)=>{state[t]=!!v};
+  const reader=()=>{const root=document.querySelector('article,main,[role=main]')||document.body;const text=(root.innerText||'').trim();post('reader-available:'+tabId+':'+(text.length>500?'1':'0'));return root};
+  window.__rakReaderAvailable=reader;
+  window.__rakReaderToggle=()=>{let box=document.getElementById('__rakReader');if(box){box.remove();document.documentElement.style.overflow='';return}const root=reader(), title=(document.querySelector('h1')||document.querySelector('title'))?.textContent||document.title||'Lesemodus';box=document.createElement('article');box.id='__rakReader';box.innerHTML='<button id="__rakReaderClose" aria-label="Lesemodus schließen">×</button><div class="rak-reader-kicker">RAK · LESEMODUS</div><h1></h1><div class="rak-reader-body"></div>';box.querySelector('h1').textContent=title;box.querySelector('.rak-reader-body').textContent=root.innerText||'';box.style.cssText='position:fixed;inset:0;z-index:2147483647;overflow:auto;background:#f7f3ea;color:#24211d;padding:clamp(28px,7vw,90px) max(22px,calc((100vw - 760px)/2));font:18px/1.75 Georgia,serif;';box.querySelector('h1').style.cssText='font:700 clamp(30px,5vw,52px)/1.1 Georgia,serif;margin:10px 0 28px';box.querySelector('.rak-reader-body').style.whiteSpace='pre-wrap';box.querySelector('.rak-reader-kicker').style.cssText='font:700 11px/1.2 Segoe UI,sans-serif;letter-spacing:.18em;color:#147d92';box.querySelector('#__rakReaderClose').style.cssText='position:fixed;right:24px;top:20px;border:0;border-radius:50%;width:38px;height:38px;background:#147d92;color:#fff;font-size:25px;cursor:pointer';box.querySelector('#__rakReaderClose').onclick=()=>box.remove();document.body.appendChild(box);document.documentElement.style.overflow='hidden'};
+  new MutationObserver(reader).observe(document.documentElement,{subtree:true,childList:true});reader();
+})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
@@ -400,6 +420,8 @@ struct State {
     blocker_paused: HashSet<String>,
     blocked_counts: HashMap<u32, u32>,
     pip_available: HashSet<u32>,
+    reader_available: HashSet<u32>,
+    permissions: HashMap<String, HashMap<String, bool>>,
     closed_tabs: Vec<ClosedTab>,
     downloads: Vec<DownloadEntry>,
 }
@@ -524,7 +546,10 @@ impl State {
     fn page_status_js(&self) -> String {
         let blocked = self.blocked_counts.get(&self.active).copied().unwrap_or(0);
         let paused = self.tabs.iter().find(|t| t.id == self.active).map(|t| self.blocker_paused.contains(&origin_key(&t.url))).unwrap_or(false);
-        format!("window.rak && window.rak.setPageStatus({});", json!({"blocked":blocked,"paused":paused,"pip":self.pip_available.contains(&self.active)}))
+        let tab = self.tabs.iter().find(|t| t.id == self.active);
+        let origin = tab.map(|t| origin_key(&t.url)).unwrap_or_default();
+        let perms = self.permissions.get(&origin).cloned().unwrap_or_default();
+        format!("window.rak && window.rak.setPageStatus({});", json!({"blocked":blocked,"paused":paused,"pip":self.pip_available.contains(&self.active),"reader":self.reader_available.contains(&self.active),"origin":origin,"permissions":perms}))
     }
 
     fn push_bookmarks(&self) {
@@ -610,6 +635,7 @@ impl State {
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
             .with_initialization_script(PASSWORD_AUTOFILL_SCRIPT)
             .with_initialization_script(PROTECTION_SCRIPT)
+            .with_initialization_script(PERMISSION_READER_SCRIPT.replace("__RAK_TAB_ID__", &id.to_string()))
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -645,6 +671,8 @@ impl State {
                     || body.starts_with("passwords-fill:")
                     || body.starts_with("blocker-count:")
                     || body.starts_with("pip-available:")
+                    || body.starts_with("permission-request:")
+                    || body.starts_with("reader-available:")
                     || body == "shortcut:f11"
                     || body == "shortcut:ctrl-t"
                     || body == "shortcut:ctrl-w"
@@ -660,6 +688,10 @@ impl State {
                         format!("blocker-count-id:{id}:{rest}")
                     } else if let Some(rest) = body.strip_prefix("pip-available:") {
                         format!("pip-available-id:{id}:{rest}")
+                    } else if let Some(rest) = body.strip_prefix("permission-request:") {
+                        format!("permission-request-id:{rest}")
+                    } else if let Some(rest) = body.strip_prefix("reader-available:") {
+                        format!("reader-available-id:{rest}")
                     } else { body.to_string() };
                     let _ = p_shortcut.send_event(UserEvent::Ipc(routed));
                 }
@@ -694,7 +726,7 @@ impl State {
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
             .with_ipc_handler(move |req| {
                 let body = req.body();
-                if body.starts_with("shortcut:") || body.starts_with("context-open:") || body.starts_with("nav:") || body.starts_with("suggest:") || body.starts_with("blocker-toggle:") || body == "pip-toggle" {
+                if body.starts_with("shortcut:") || body.starts_with("context-open:") || body.starts_with("nav:") || body.starts_with("suggest:") || body.starts_with("blocker-toggle:") || body.starts_with("permission-set:") || body == "pip-toggle" || body == "reader-toggle" {
                     let _ = p_ipc.send_event(UserEvent::Ipc(body.to_string()));
                 } else {
                     let _ = p_ipc.send_event(UserEvent::Page(body.to_string()));
@@ -1039,6 +1071,7 @@ impl State {
                         let _ = t.view.load_url(&translated);
                     }
                 }
+                let perms = self.permissions.get(&origin_key(&url)).cloned().unwrap_or_default();
                 if let Some(t) = self
                     .tabs
                     .iter_mut()
@@ -1051,7 +1084,7 @@ impl State {
                         self.store.add_history(&url, &title);
                     }
                     let paused = self.blocker_paused.contains(&origin_key(&url));
-                    let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({}); window.__rakPipAvailable && window.__rakPipAvailable();", paused));
+                    let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({}); window.__rakSetPermission && Object.entries({}).forEach(([k,v])=>window.__rakSetPermission(k,v)); window.__rakPipAvailable && window.__rakPipAvailable(); window.__rakReaderAvailable && window.__rakReaderAvailable();", paused, json!(perms)));
                 }
             }
             UserEvent::OpenUrl { url, source } => {
@@ -1085,6 +1118,22 @@ impl State {
             "pip-available-id" => {
                 let mut p = arg.splitn(2, ':');
                 if let (Some(id), Some(v)) = (p.next().and_then(|x| x.parse::<u32>().ok()), p.next()) { if v == "1" { self.pip_available.insert(id); } else { self.pip_available.remove(&id); } }
+            }
+            "reader-available-id" => {
+                let mut p = arg.splitn(2, ':');
+                if let (Some(id), Some(v)) = (p.next().and_then(|x| x.parse::<u32>().ok()), p.next()) { if v == "1" { self.reader_available.insert(id); } else { self.reader_available.remove(&id); } }
+            }
+            "permission-request-id" => {
+                let mut p = arg.splitn(3, ':');
+                let id = p.next().and_then(|x| x.parse::<u32>().ok());
+                let kind = p.next().unwrap_or_default().to_string();
+                let origin = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| x.into_owned()).unwrap_or_default();
+                if let Some(id) = id {
+                    let key = origin_key(&origin);
+                    if self.permissions.get(&key).and_then(|m| m.get(&kind)).is_none() {
+                        let _ = self.ui.evaluate_script(&format!("window.rak && window.rak.setPermissionRequest({});", json!({"id":id,"type":kind,"origin":key})));
+                    }
+                }
             }
             "passwords-request-id" => {
                 let mut p = arg.splitn(2, ':');
@@ -1199,6 +1248,23 @@ impl State {
             }
             "pip-toggle" => {
                 if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) { let _ = t.view.evaluate_script("window.__rakPipToggle && window.__rakPipToggle();"); }
+            }
+            "reader-toggle" => {
+                if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) { let _ = t.view.evaluate_script("window.__rakReaderToggle && window.__rakReaderToggle();"); }
+            }
+            "permission-set" => {
+                let mut p = arg.splitn(4, ':');
+                let origin = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| origin_key(&x)).unwrap_or_default();
+                let kind = p.next().unwrap_or_default().to_string();
+                let value = p.next().map(|x| x == "allow").unwrap_or(false);
+                if !origin.is_empty() && !kind.is_empty() {
+                    self.permissions.entry(origin.clone()).or_default().insert(kind, value);
+                    if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) {
+                        let state = self.permissions.get(&origin).cloned().unwrap_or_default();
+                        let _ = t.view.evaluate_script(&format!("Object.entries({}).forEach(([k,v])=>window.__rakSetPermission&&window.__rakSetPermission(k,v));", json!(state)));
+                    }
+                    let _ = self.ui.evaluate_script(&self.page_status_js());
+                }
             }
             "new" => self.new_web_tab(
                 window,
@@ -1670,6 +1736,8 @@ fn main() -> wry::Result<()> {
         blocker_paused: HashSet::new(),
         blocked_counts: HashMap::new(),
         pip_available: HashSet::new(),
+        reader_available: HashSet::new(),
+        permissions: HashMap::new(),
         closed_tabs: Vec::new(),
         downloads: Vec::new(),
     };

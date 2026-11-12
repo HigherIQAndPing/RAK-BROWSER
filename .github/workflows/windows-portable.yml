@@ -258,6 +258,12 @@ jobs:
           * Tab-Suche mit Strg+Umschalt+A, Suchfeld in der Tab-Leiste und direktem Wechsel zum Treffer.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.13.0-Build erstellt.
           '@
+            'v0.14.0' = @'
+          ### Diese Version
+          * Website-Berechtigungen für Standort, Kamera, Mikrofon und Benachrichtigungen, pro Origin steuerbar und standardmäßig blockiert.
+          * Lesemodus mit bereinigter, fokussierter Artikelansicht direkt in der Toolbar.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.14.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

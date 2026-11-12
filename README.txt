@@ -304,3 +304,9 @@ RELEASE 0.13.0
 Der Download-Manager zeigt laufende, erfolgreiche und fehlgeschlagene Downloads auf einer internen Seite an. Dateien werden im Ordner „RAK Downloads“ im Benutzer-Downloadverzeichnis gespeichert und können aus der Liste geöffnet werden.
 
 Mit Strg + Umschalt + T lässt sich der zuletzt geschlossene Web-Tab wiederherstellen; bis zu 20 geschlossene Tabs werden vorgehalten. Mit Strg + Umschalt + A öffnet sich die Tab-Suche. Treffer können nach Titel oder URL gefiltert und direkt aktiviert werden.
+
+RELEASE 0.14.0
+---------------
+Website-Berechtigungen können jetzt pro Website-Origin für Standort, Kamera, Mikrofon und Benachrichtigungen verwaltet werden. Der Standard ist „Nicht festgelegt“ beziehungsweise blockiert; Freigaben und Sperren lassen sich über das Berechtigungs-Popover in der Toolbar ändern.
+
+Der neue Lesemodus erkennt längere Seiteninhalte und stellt sie als fokussierte, bereinigte Leseansicht mit großer Typografie dar. Er wird über das Lesemodus-Symbol in der Toolbar geöffnet und direkt in der Seite wieder geschlossen.
