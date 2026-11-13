@@ -271,6 +271,14 @@ jobs:
           * Die vorhandenen individuellen Farbanpassungen und Browserfunktionen bleiben kompatibel.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.15.0-Build erstellt.
           '@
+            'v0.16.0' = @'
+          ### Diese Version
+          * Komplett überarbeitete RAK-Branding-Palette auf Basis des neuen Logos und der monochromen Referenz.
+          * Light Mode mit weißem Hintergrund und schwarzer Schrift.
+          * Dark Mode mit tiefschwarzem Hintergrund und weißer Schrift.
+          * Der Modus wird auf Toolbar, Titelleiste, Sidebar und alle internen Seiten angewendet; alte Designwerte werden automatisch migriert.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.16.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

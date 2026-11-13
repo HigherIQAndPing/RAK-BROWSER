@@ -151,9 +151,10 @@ const PERMISSION_READER_SCRIPT: &str = r#"
 const DESIGN_SCRIPT: &str = r#"
 (function(){
   window.rakApplyDesign=function(mode){
-    mode=mode==='modern'?'modern':'dashboard'; document.documentElement.dataset.rakDesign=mode;
+    mode=(mode==='light'||mode==='modern')?'light':'dark'; document.documentElement.dataset.rakDesign=mode;
     let s=document.getElementById('__rakDesignStyle'); if(!s){s=document.createElement('style');s.id='__rakDesignStyle';document.head.appendChild(s)}
-    s.textContent=mode==='modern'?':root{--bg:#f4f7fa;--panel:#fff;--panel2:#eef2f6;--accent:#275dff;--text:#17212b;--dim:#607080;--line:#d8e0e8}body{background:var(--bg)!important;color:var(--text)!important}button,input,select{font-family:Segoe UI,system-ui,sans-serif}.card,.row,.item,.empty{background:var(--panel)!important;border-color:var(--line)!important}.sub,.desc,.tip,.meta,.dim{color:var(--dim)!important}':' :root{--bg:#07090d;--panel:#10151d;--panel2:#171f2b;--accent:#6ee7ff;--text:#e9f1ff;--dim:#8b9aad;--line:#263545}body{background:var(--bg)!important;color:var(--text)!important}.card,.row,.item,.empty{background:var(--panel)!important;border-color:var(--line)!important}';
+    const light=mode==='light';
+    s.textContent=`:root{color-scheme:${light?'light':'dark'}!important;--bg:${light?'#ffffff':'#080808'}!important;--panel:${light?'#ffffff':'#111111'}!important;--panel2:${light?'#f1f1f1':'#1b1b1b'}!important;--toolbar:${light?'#ffffff':'#101010'}!important;--bookmark:${light?'#f5f5f5':'#080808'}!important;--tab:${light?'#ffffff':'#151515'}!important;--accent:${light?'#111111':'#ffffff'}!important;--on-accent:${light?'#ffffff':'#000000'}!important;--text:${light?'#000000':'#ffffff'}!important;--dim:${light?'#555555':'#bdbdbd'}!important;--line:${light?'#d6d6d6':'#303030'}!important;--rak-brand:${light?'#000000':'#ffffff'}!important;--rak-red:#a51f2d!important}html,body{background:var(--bg)!important;color:var(--text)!important}body,*{border-color:var(--line)}button,input,select,textarea{font-family:Segoe UI,system-ui,sans-serif;color:var(--text)}button{background:var(--panel2);color:var(--text)}input,select,textarea{background:var(--panel);color:var(--text);border-color:var(--line)}.card,.row,.item,.empty,.status,.head,.chip,.tab,.tabbtn,.btn,.panel,.box{background:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important}.sub,.desc,.tip,.meta,.muted,.dim,.hint,.lbl,small,.tab-result-url,.suggestion .surl{color:var(--dim)!important}h1,h2,h3,h4,strong,.name,.label,.title,.brand,.logo,.window-btn,#edit,.mini{color:var(--text)!important}#bar{background:var(--bg)!important}.window-btn:hover{background:var(--panel2)!important;color:var(--text)!important}.mark{border-color:var(--text)!important;color:var(--text)!important}a{color:${light?'#111111':'#ffffff'};text-decoration-color:var(--rak-red)}.btn.primary,.pill.ok{background:var(--rak-brand)!important;color:${light?'#ffffff':'#000000'}!important;border-color:var(--rak-brand)!important}.btn:hover,.tabbtn:hover,.chip:hover{background:var(--panel2)!important;color:var(--text)!important}.modern-design,.dashboard-design,.light-design,.dark-design{background:var(--bg)!important}`;
   }; window.rakApplyDesign('__RAK_DESIGN__');
 })();
 "#;
@@ -1470,8 +1471,13 @@ impl State {
 
     fn update_settings(&mut self, v: &Value) {
         if let Some(mode) = v["design_mode"].as_str() {
-            if ["modern", "dashboard"].contains(&mode) {
-                self.store.settings.design_mode = mode.to_string();
+            let normalized = match mode {
+                "light" | "modern" => Some("light"),
+                "dark" | "dashboard" => Some("dark"),
+                _ => None,
+            };
+            if let Some(normalized) = normalized {
+                self.store.settings.design_mode = normalized.to_string();
             }
         }
         if let Some(engine) = v["search_engine"].as_str() {

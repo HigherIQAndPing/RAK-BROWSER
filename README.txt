@@ -319,3 +319,12 @@ RAK enthält jetzt zwei umschaltbare Designvarianten:
 * Dunkles Dashboard: tiefes OLED-Dunkel mit kontrastreichen Neon-/Pastell-Akzenten für produktives Arbeiten bei Nacht.
 
 Die Variante wird unter Einstellungen > Browserdesign ausgewählt und gespeichert. Der Wechsel wirkt auf Toolbar, Titelleiste, Seitenleiste und interne Browserseiten. Die Designvorgaben aus der neuen RAK-Branding-Referenz wurden dabei umgesetzt, ohne Tab-Inseln, Omnibox, Website-Berechtigungen, Lesemodus oder andere Funktionen zu entfernen.
+
+RELEASE 0.16.0
+---------------
+Das RAK-Design wurde vollständig auf die neue monochrome Branding-Grundlage mit dem RAK-Schildlogo ausgerichtet.
+
+* Light Mode: weißer Hintergrund, schwarze Schrift und klare helle Flächen.
+* Dark Mode: tiefschwarzer Hintergrund, weiße Schrift und kontrastreiche dunkle Flächen.
+* Die Auswahl erfolgt unter Einstellungen > Browserdesign und wird dauerhaft gespeichert.
+* Der Modus gilt für Toolbar, Titelleiste, Sidebar und alle internen Browserseiten. Alte Werte aus v0.15.0 werden automatisch übernommen.

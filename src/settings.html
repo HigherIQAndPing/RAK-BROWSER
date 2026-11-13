@@ -36,9 +36,9 @@
 
   <section class="card">
     <h2>Browserdesign</h2>
-    <div class="desc">Wechsle jederzeit zwischen dem hellen, reduzierten Design und dem dunklen Dashboard-Design.</div>
+    <div class="desc">Wechsle jederzeit zwischen dem hellen RAK-Light-Mode mit schwarzer Schrift und dem dunklen RAK-Dark-Mode mit weißer Schrift.</div>
     <div class="row"><div class="label">Designvariante<small>Die Auswahl wird für Toolbar und interne Browserseiten übernommen.</small></div>
-      <select id="design_mode"><option value="modern">Modern Minimalistisch</option><option value="dashboard">Dunkles Dashboard</option></select>
+      <select id="design_mode"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select>
     </div>
   </section>
 
@@ -100,7 +100,7 @@
     const s = payload.settings || payload;
     if (!s) return;
     $('search_engine').value = s.search_engine || 'duckduckgo';
-    $('design_mode').value = s.design_mode || 'dashboard';
+    $('design_mode').value = (s.design_mode === 'modern' ? 'light' : s.design_mode === 'dashboard' ? 'dark' : s.design_mode) || 'dark';
     $('auto_translate').checked = !!s.auto_translate;
     $('translate_lang').value = s.translate_lang || 'de';
     const colors = s.colors || {};
@@ -110,12 +110,14 @@
     root.setProperty('--panel', colors.tabs || '#16161d');
     root.setProperty('--accent', colors.accent || '#19d3ff');
     root.setProperty('--text', colors.text || '#e8e8f0');
+    if (window.rakApplyDesign) window.rakApplyDesign($('design_mode').value);
   }
   $('passwords_open').onclick = () => send({t:'passwords_open'});
   function save() {
     const colors = {};
     document.querySelectorAll('[data-color]').forEach(input => colors[input.dataset.color] = input.value);
     const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, auto_translate:$('auto_translate').checked, translate_lang:$('translate_lang').value, colors };
+    if (window.rakApplyDesign) window.rakApplyDesign(settings.design_mode);
     send({t:'settings_save', ...settings});
     $('saved').textContent = 'Gespeichert';
     clearTimeout(timer); timer = setTimeout(() => $('saved').textContent = '', 1200);

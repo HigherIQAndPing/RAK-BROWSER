@@ -82,7 +82,7 @@ impl Default for Settings {
             search_engine: "duckduckgo".into(),
             auto_translate: false,
             translate_lang: "de".into(),
-            design_mode: "dashboard".into(),
+            design_mode: "dark".into(),
             colors: ThemeColors::default(),
         }
     }

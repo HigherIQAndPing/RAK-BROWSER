@@ -10,9 +10,7 @@
 
   /* Die native UI-WebView bleibt exakt 116px: 40 + 44 + 32. */
   #tabs { height:40px; display:flex; align-items:center; gap:4px; padding:0 8px; border-bottom:1px solid #000; background:var(--bg); }
-  .logo { flex:none; font-weight:900; font-size:15px; letter-spacing:3px; padding:0 8px 0 6px; font-style:italic;
-          background:linear-gradient(90deg,#19d3ff,#7a5cff); -webkit-background-clip:text; background-clip:text; color:transparent;
-          filter:drop-shadow(0 0 6px rgba(25,211,255,.55)); cursor:default; }
+  .logo { flex:none; font-weight:900; font-size:15px; letter-spacing:3px; padding:0 8px 0 6px; font-style:italic; color:var(--text); cursor:default; }
   #tab-scroll { flex:1; min-width:0; height:39px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; }
   #tab-scroll::-webkit-scrollbar { display:none; }
   #tab-list { display:flex; align-items:flex-end; gap:4px; width:max-content; min-width:100%; height:39px; padding-top:4px; }
@@ -27,7 +25,7 @@
   .tab .badge { font-size:9px; font-weight:700; letter-spacing:.5px; color:var(--priv); border:1px solid var(--priv); border-radius:4px; padding:0 3px; }
   .tab .title { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tab .x { flex:none; width:20px; height:20px; border:0; background:transparent; color:inherit; font-size:15px; text-align:center; border-radius:50%; cursor:pointer; }
-  .tab .x:hover { background:var(--accent); color:#0d0d12; }
+  .tab .x:hover { background:var(--accent); color:var(--on-accent); }
   .tab.home-tab { width:38px; min-width:38px; justify-content:center; padding:0; color:var(--accent); background:var(--panel); }
   .tab.home-tab .home-mark { font-size:17px; line-height:1; }
   .tab.home-tab .title { display:none; }
@@ -45,7 +43,7 @@
   .drop-target { outline:2px dashed var(--accent) !important; outline-offset:-3px; }
   .tabbtn { flex:none; width:30px; height:30px; border:none; border-radius:8px; background:var(--panel); color:var(--accent);
             font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-  .tabbtn:hover { background:var(--accent); color:#0d0d12; }
+  .tabbtn:hover { background:var(--accent); color:var(--on-accent); }
   .tabbtn:disabled, .pill:disabled { opacity:.35; cursor:default; }
   .tabbtn:disabled:hover { background:var(--panel); color:var(--accent); }
   .scrollbtn { width:20px; font-size:15px; }
@@ -226,13 +224,13 @@
     if (settings.design_mode) applyDesign(settings.design_mode);
   }
   function applyDesign(mode) {
-    mode = mode === 'modern' ? 'modern' : 'dashboard';
+    mode = (mode === 'light' || mode === 'modern') ? 'light' : 'dark';
     document.documentElement.dataset.rakDesign = mode;
     const root = document.documentElement.style;
-    const v = mode === 'modern' ? { bg:'#f4f7fa', panel:'#ffffff', panel2:'#eef2f6', toolbar:'#ffffff', bookmark:'#e8edf2', tab:'#ffffff', accent:'#275dff', text:'#17212b', dim:'#607080', line:'#d8e0e8' } : { bg:'#07090d', panel:'#10151d', panel2:'#171f2b', toolbar:'#111821', bookmark:'#07090d', tab:'#10151d', accent:'#6ee7ff', text:'#e9f1ff', dim:'#8b9aad', line:'#263545' };
+    const v = mode === 'light' ? { bg:'#ffffff', panel:'#ffffff', panel2:'#f1f1f1', toolbar:'#ffffff', bookmark:'#f5f5f5', tab:'#ffffff', accent:'#111111', onAccent:'#ffffff', text:'#000000', dim:'#555555', line:'#d6d6d6' } : { bg:'#080808', panel:'#111111', panel2:'#1b1b1b', toolbar:'#101010', bookmark:'#080808', tab:'#151515', accent:'#ffffff', onAccent:'#000000', text:'#ffffff', dim:'#bdbdbd', line:'#303030' };
     Object.entries(v).forEach(([k,val])=>root.setProperty('--'+k,val));
-    document.body.classList.toggle('modern-design', mode === 'modern');
-    document.body.classList.toggle('dashboard-design', mode === 'dashboard');
+    document.body.classList.toggle('light-design', mode === 'light');
+    document.body.classList.toggle('dark-design', mode === 'dark');
   }
   window.rakApplyDesign = applyDesign;
 
