@@ -44,6 +44,7 @@ pub struct Settings {
     pub search_engine: String,
     pub auto_translate: bool,
     pub translate_lang: String,
+    pub design_mode: String,
     pub colors: ThemeColors,
 }
 
@@ -81,6 +82,7 @@ impl Default for Settings {
             search_engine: "duckduckgo".into(),
             auto_translate: false,
             translate_lang: "de".into(),
+            design_mode: "dashboard".into(),
             colors: ThemeColors::default(),
         }
     }

@@ -223,7 +223,18 @@
     root.setProperty('--bookmark', c.bookmarks || '#0d0d12');
     root.setProperty('--accent', c.accent || '#19d3ff');
     root.setProperty('--text', c.text || '#e8e8f0');
+    if (settings.design_mode) applyDesign(settings.design_mode);
   }
+  function applyDesign(mode) {
+    mode = mode === 'modern' ? 'modern' : 'dashboard';
+    document.documentElement.dataset.rakDesign = mode;
+    const root = document.documentElement.style;
+    const v = mode === 'modern' ? { bg:'#f4f7fa', panel:'#ffffff', panel2:'#eef2f6', toolbar:'#ffffff', bookmark:'#e8edf2', tab:'#ffffff', accent:'#275dff', text:'#17212b', dim:'#607080', line:'#d8e0e8' } : { bg:'#07090d', panel:'#10151d', panel2:'#171f2b', toolbar:'#111821', bookmark:'#07090d', tab:'#10151d', accent:'#6ee7ff', text:'#e9f1ff', dim:'#8b9aad', line:'#263545' };
+    Object.entries(v).forEach(([k,val])=>root.setProperty('--'+k,val));
+    document.body.classList.toggle('modern-design', mode === 'modern');
+    document.body.classList.toggle('dashboard-design', mode === 'dashboard');
+  }
+  window.rakApplyDesign = applyDesign;
 
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const activeTab = () => state.tabs.find(t => t.id === state.active);

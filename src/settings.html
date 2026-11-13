@@ -32,7 +32,15 @@
 <body>
 <div class="wrap">
   <h1>Einstellungen</h1>
-  <div class="sub">Suchmaschine, automatische Übersetzung und Farben der Browseroberfläche. Änderungen werden automatisch gespeichert.</div>
+  <div class="sub">Suchmaschine, automatische Übersetzung, Browserdesign und Farben der Browseroberfläche. Änderungen werden automatisch gespeichert.</div>
+
+  <section class="card">
+    <h2>Browserdesign</h2>
+    <div class="desc">Wechsle jederzeit zwischen dem hellen, reduzierten Design und dem dunklen Dashboard-Design.</div>
+    <div class="row"><div class="label">Designvariante<small>Die Auswahl wird für Toolbar und interne Browserseiten übernommen.</small></div>
+      <select id="design_mode"><option value="modern">Modern Minimalistisch</option><option value="dashboard">Dunkles Dashboard</option></select>
+    </div>
+  </section>
 
   <section class="card">
     <h2>Passwortmanager</h2>
@@ -92,6 +100,7 @@
     const s = payload.settings || payload;
     if (!s) return;
     $('search_engine').value = s.search_engine || 'duckduckgo';
+    $('design_mode').value = s.design_mode || 'dashboard';
     $('auto_translate').checked = !!s.auto_translate;
     $('translate_lang').value = s.translate_lang || 'de';
     const colors = s.colors || {};
@@ -106,13 +115,14 @@
   function save() {
     const colors = {};
     document.querySelectorAll('[data-color]').forEach(input => colors[input.dataset.color] = input.value);
-    const settings = { search_engine:$('search_engine').value, auto_translate:$('auto_translate').checked, translate_lang:$('translate_lang').value, colors };
+    const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, auto_translate:$('auto_translate').checked, translate_lang:$('translate_lang').value, colors };
     send({t:'settings_save', ...settings});
     $('saved').textContent = 'Gespeichert';
     clearTimeout(timer); timer = setTimeout(() => $('saved').textContent = '', 1200);
   }
   window.setData = d => { data = d; applySettings(d); };
   $('search_engine').addEventListener('change', save);
+  $('design_mode').addEventListener('change', save);
   $('auto_translate').addEventListener('change', save);
   $('translate_lang').addEventListener('change', save);
   $('import_btn').addEventListener('click', () => {

@@ -148,6 +148,16 @@ const PERMISSION_READER_SCRIPT: &str = r#"
 })();
 "#;
 
+const DESIGN_SCRIPT: &str = r#"
+(function(){
+  window.rakApplyDesign=function(mode){
+    mode=mode==='modern'?'modern':'dashboard'; document.documentElement.dataset.rakDesign=mode;
+    let s=document.getElementById('__rakDesignStyle'); if(!s){s=document.createElement('style');s.id='__rakDesignStyle';document.head.appendChild(s)}
+    s.textContent=mode==='modern'?':root{--bg:#f4f7fa;--panel:#fff;--panel2:#eef2f6;--accent:#275dff;--text:#17212b;--dim:#607080;--line:#d8e0e8}body{background:var(--bg)!important;color:var(--text)!important}button,input,select{font-family:Segoe UI,system-ui,sans-serif}.card,.row,.item,.empty{background:var(--panel)!important;border-color:var(--line)!important}.sub,.desc,.tip,.meta,.dim{color:var(--dim)!important}':' :root{--bg:#07090d;--panel:#10151d;--panel2:#171f2b;--accent:#6ee7ff;--text:#e9f1ff;--dim:#8b9aad;--line:#263545}body{background:var(--bg)!important;color:var(--text)!important}.card,.row,.item,.empty{background:var(--panel)!important;border-color:var(--line)!important}';
+  }; window.rakApplyDesign('__RAK_DESIGN__');
+})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
@@ -582,7 +592,18 @@ impl State {
                 .view
                 .evaluate_script(&format!("window.setData({});", data));
         }
+        self.push_design();
         self.push_side();
+    }
+
+    fn push_design(&self) {
+        let js = format!("window.rakApplyDesign && window.rakApplyDesign({});", json!(self.store.settings.design_mode));
+        let _ = self.ui.evaluate_script(&js);
+        let _ = self.titlebar.evaluate_script(&js);
+        let _ = self.side.evaluate_script(&js);
+        for t in self.tabs.iter().filter(|t| t.kind != Kind::Web) {
+            let _ = t.view.evaluate_script(&js);
+        }
     }
 
     fn push_internal(&self) {
@@ -724,6 +745,7 @@ impl State {
             .with_html(html)
             .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
+            .with_initialization_script(DESIGN_SCRIPT.replace("__RAK_DESIGN__", &self.store.settings.design_mode))
             .with_ipc_handler(move |req| {
                 let body = req.body();
                 if body.starts_with("shortcut:") || body.starts_with("context-open:") || body.starts_with("nav:") || body.starts_with("suggest:") || body.starts_with("blocker-toggle:") || body.starts_with("permission-set:") || body == "pip-toggle" || body == "reader-toggle" {
@@ -1447,6 +1469,11 @@ impl State {
     }
 
     fn update_settings(&mut self, v: &Value) {
+        if let Some(mode) = v["design_mode"].as_str() {
+            if ["modern", "dashboard"].contains(&mode) {
+                self.store.settings.design_mode = mode.to_string();
+            }
+        }
         if let Some(engine) = v["search_engine"].as_str() {
             if ["google", "duckduckgo", "ecosia", "bing"].contains(&engine) {
                 self.store.settings.search_engine = engine.to_string();
@@ -1678,6 +1705,7 @@ fn main() -> wry::Result<()> {
         new_builder()
             .with_bounds(rect(0.0, 0.0, w, TITLEBAR_HEIGHT))
             .with_html(include_str!("titlebar.html"))
+            .with_initialization_script(DESIGN_SCRIPT.replace("__RAK_DESIGN__", &store.settings.design_mode))
             .with_ipc_handler(move |req| {
                 let _ = title_proxy.send_event(UserEvent::Ipc(req.body().to_string()));
             }),
@@ -1710,6 +1738,7 @@ fn main() -> wry::Result<()> {
     let side_builder = new_builder()
         .with_bounds(rect(0.0, UI_HEIGHT, SIDEBAR_W, h - UI_HEIGHT))
         .with_html(include_str!("side.html"))
+        .with_initialization_script(DESIGN_SCRIPT.replace("__RAK_DESIGN__", &store.settings.design_mode))
         .with_ipc_handler(move |req| {
             let _ = side_proxy.send_event(UserEvent::Ipc(req.body().to_string()));
         });

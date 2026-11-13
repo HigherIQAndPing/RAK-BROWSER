@@ -264,6 +264,13 @@ jobs:
           * Lesemodus mit bereinigter, fokussierter Artikelansicht direkt in der Toolbar.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.14.0-Build erstellt.
           '@
+            'v0.15.0' = @'
+          ### Diese Version
+          * Zwei umschaltbare Browserdesigns: Modern Minimalistisch und Dunkles Dashboard.
+          * Designmodus wird in den Einstellungen gespeichert und auf Toolbar, Titelleiste, Sidebar und interne Seiten angewendet.
+          * Die vorhandenen individuellen Farbanpassungen und Browserfunktionen bleiben kompatibel.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.15.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

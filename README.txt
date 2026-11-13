@@ -310,3 +310,12 @@ RELEASE 0.14.0
 Website-Berechtigungen können jetzt pro Website-Origin für Standort, Kamera, Mikrofon und Benachrichtigungen verwaltet werden. Der Standard ist „Nicht festgelegt“ beziehungsweise blockiert; Freigaben und Sperren lassen sich über das Berechtigungs-Popover in der Toolbar ändern.
 
 Der neue Lesemodus erkennt längere Seiteninhalte und stellt sie als fokussierte, bereinigte Leseansicht mit großer Typografie dar. Er wird über das Lesemodus-Symbol in der Toolbar geöffnet und direkt in der Seite wieder geschlossen.
+
+RELEASE 0.15.0
+---------------
+RAK enthält jetzt zwei umschaltbare Designvarianten:
+
+* Modern Minimalistisch: helles, freundliches Layout mit klaren Flächen, dünnen Linien, abgerundeten Karten und Fokus auf Lesbarkeit.
+* Dunkles Dashboard: tiefes OLED-Dunkel mit kontrastreichen Neon-/Pastell-Akzenten für produktives Arbeiten bei Nacht.
+
+Die Variante wird unter Einstellungen > Browserdesign ausgewählt und gespeichert. Der Wechsel wirkt auf Toolbar, Titelleiste, Seitenleiste und interne Browserseiten. Die Designvorgaben aus der neuen RAK-Branding-Referenz wurden dabei umgesetzt, ohne Tab-Inseln, Omnibox, Website-Berechtigungen, Lesemodus oder andere Funktionen zu entfernen.
