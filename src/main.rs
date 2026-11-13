@@ -154,8 +154,19 @@ const DESIGN_SCRIPT: &str = r#"
     mode=(mode==='light'||mode==='modern')?'light':'dark'; document.documentElement.dataset.rakDesign=mode;
     let s=document.getElementById('__rakDesignStyle'); if(!s){s=document.createElement('style');s.id='__rakDesignStyle';document.head.appendChild(s)}
     const light=mode==='light';
-    s.textContent=`:root{color-scheme:${light?'light':'dark'}!important;--bg:${light?'#ffffff':'#080808'}!important;--panel:${light?'#ffffff':'#111111'}!important;--panel2:${light?'#f1f1f1':'#1b1b1b'}!important;--toolbar:${light?'#ffffff':'#101010'}!important;--bookmark:${light?'#f5f5f5':'#080808'}!important;--tab:${light?'#ffffff':'#151515'}!important;--accent:${light?'#111111':'#ffffff'}!important;--on-accent:${light?'#ffffff':'#000000'}!important;--text:${light?'#000000':'#ffffff'}!important;--dim:${light?'#555555':'#bdbdbd'}!important;--line:${light?'#d6d6d6':'#303030'}!important;--rak-brand:${light?'#000000':'#ffffff'}!important;--rak-red:#a51f2d!important}html,body{background:var(--bg)!important;color:var(--text)!important}body,*{border-color:var(--line)}button,input,select,textarea{font-family:Segoe UI,system-ui,sans-serif;color:var(--text)}button{background:var(--panel2);color:var(--text)}input,select,textarea{background:var(--panel);color:var(--text);border-color:var(--line)}.card,.row,.item,.empty,.status,.head,.chip,.tab,.tabbtn,.btn,.panel,.box{background:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important}.sub,.desc,.tip,.meta,.muted,.dim,.hint,.lbl,small,.tab-result-url,.suggestion .surl{color:var(--dim)!important}h1,h2,h3,h4,strong,.name,.label,.title,.brand,.logo,.window-btn,#edit,.mini{color:var(--text)!important}#bar{background:var(--bg)!important}.window-btn:hover{background:var(--panel2)!important;color:var(--text)!important}.mark{border-color:var(--text)!important;color:var(--text)!important}a{color:${light?'#111111':'#ffffff'};text-decoration-color:var(--rak-red)}.btn.primary,.pill.ok{background:var(--rak-brand)!important;color:${light?'#ffffff':'#000000'}!important;border-color:var(--rak-brand)!important}.btn:hover,.tabbtn:hover,.chip:hover{background:var(--panel2)!important;color:var(--text)!important}.modern-design,.dashboard-design,.light-design,.dark-design{background:var(--bg)!important}`;
+    s.textContent=`:root{color-scheme:${light?'light':'dark'}!important;--bg:${light?'#ffffff':'#080808'}!important;--panel:${light?'#ffffff':'#111111'}!important;--panel2:${light?'#f1f1f1':'#1b1b1b'}!important;--toolbar:${light?'#ffffff':'#101010'}!important;--bookmark:${light?'#f5f5f5':'#080808'}!important;--tab:${light?'#ffffff':'#151515'}!important;--accent:${light?'#111111':'#ffffff'}!important;--on-accent:${light?'#ffffff':'#000000'}!important;--text:${light?'#000000':'#ffffff'}!important;--dim:${light?'#555555':'#bdbdbd'}!important;--line:${light?'#d6d6d6':'#303030'}!important;--header-glow:${light?'#eceeef':'#202020'}!important;--header-line:${light?'#d9d9d9':'#303030'}!important;--rak-brand:${light?'#000000':'#ffffff'}!important;--rak-red:#a51f2d!important}html,body{background:var(--bg)!important;color:var(--text)!important}body,*{border-color:var(--line)}button,input,select,textarea{font-family:Segoe UI,system-ui,sans-serif;color:var(--text)}button{background:var(--panel2);color:var(--text)}input,select,textarea{background:var(--panel);color:var(--text);border-color:var(--line)}.card,.row,.item,.empty,.status,.head,.chip,.tab,.tabbtn,.btn,.panel,.box{background:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important}.sub,.desc,.tip,.meta,.muted,.dim,.hint,.lbl,small,.tab-result-url,.suggestion .surl{color:var(--dim)!important}h1,h2,h3,h4,strong,.name,.label,.title,.brand,.logo,.window-btn,#edit,.mini{color:var(--text)!important}#bar{background:var(--bg)!important}.window-btn:hover{background:var(--panel2)!important;color:var(--text)!important}.mark{border-color:var(--text)!important;color:var(--text)!important}a{color:${light?'#111111':'#ffffff'};text-decoration-color:var(--rak-red)}.btn.primary,.pill.ok{background:var(--rak-brand)!important;color:${light?'#ffffff':'#000000'}!important;border-color:var(--rak-brand)!important}.btn:hover,.tabbtn:hover,.chip:hover{background:var(--panel2)!important;color:var(--text)!important}.modern-design,.dashboard-design,.light-design,.dark-design{background:var(--bg)!important}`;
   }; window.rakApplyDesign('__RAK_DESIGN__');
+})();
+"#;
+
+const EXTERNAL_THEME_SCRIPT: &str = r#"
+(function(){
+  window.__rakSetBrowserTheme=function(mode){
+    let s=document.getElementById('__rakExternalLight');
+    if(mode!=='light'){if(s)s.remove();document.documentElement.style.colorScheme='';return}
+    if(!s){s=document.createElement('style');s.id='__rakExternalLight';document.documentElement.appendChild(s)}
+    s.textContent=':root{color-scheme:light!important}html,body{background:#fff!important;color:#000!important}body *:not(img):not(video):not(canvas):not(svg):not(path){color:#000!important;border-color:#d8d8d8!important}body main,body header,body nav,body section,body article,body aside,body footer,body [role="main"]{background-color:#fff!important}body input,body textarea,body select{background:#fff!important;color:#000!important}body a{color:#174ea6!important}';
+  };
 })();
 "#;
 
@@ -602,6 +613,10 @@ impl State {
         let _ = self.ui.evaluate_script(&js);
         let _ = self.titlebar.evaluate_script(&js);
         let _ = self.side.evaluate_script(&js);
+        let external_mode = if self.store.settings.design_mode == "light" || self.store.settings.design_mode == "modern" { "light" } else { "dark" };
+        for t in self.tabs.iter().filter(|t| t.kind == Kind::Web) {
+            let _ = t.view.evaluate_script(&format!("window.__rakSetBrowserTheme && window.__rakSetBrowserTheme('{}');", external_mode));
+        }
         for t in self.tabs.iter().filter(|t| t.kind != Kind::Web) {
             let _ = t.view.evaluate_script(&js);
         }
@@ -658,6 +673,7 @@ impl State {
             .with_initialization_script(PASSWORD_AUTOFILL_SCRIPT)
             .with_initialization_script(PROTECTION_SCRIPT)
             .with_initialization_script(PERMISSION_READER_SCRIPT.replace("__RAK_TAB_ID__", &id.to_string()))
+            .with_initialization_script(EXTERNAL_THEME_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -668,7 +684,7 @@ impl State {
                     PageLoadEvent::Started => UserEvent::Started(id, u),
                     PageLoadEvent::Finished => UserEvent::Loaded(id, u),
                 };
-                let _ = p_load.send_event(e);
+                    let _ = p_load.send_event(e);
             })
             .with_new_window_req_handler(move |u| {
                 let _ = p_new.send_event(UserEvent::OpenUrl {
@@ -1107,7 +1123,8 @@ impl State {
                         self.store.add_history(&url, &title);
                     }
                     let paused = self.blocker_paused.contains(&origin_key(&url));
-                    let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({}); window.__rakSetPermission && Object.entries({}).forEach(([k,v])=>window.__rakSetPermission(k,v)); window.__rakPipAvailable && window.__rakPipAvailable(); window.__rakReaderAvailable && window.__rakReaderAvailable();", paused, json!(perms)));
+                    let browser_theme = if self.store.settings.design_mode == "light" || self.store.settings.design_mode == "modern" { "light" } else { "dark" };
+                    let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({}); window.__rakSetPermission && Object.entries({}).forEach(([k,v])=>window.__rakSetPermission(k,v)); window.__rakSetBrowserTheme && window.__rakSetBrowserTheme('{}'); window.__rakPipAvailable && window.__rakPipAvailable(); window.__rakReaderAvailable && window.__rakReaderAvailable();", paused, json!(perms), browser_theme));
                 }
             }
             UserEvent::OpenUrl { url, source } => {

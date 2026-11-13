@@ -279,6 +279,14 @@ jobs:
           * Der Modus wird auf Toolbar, Titelleiste, Sidebar und alle internen Seiten angewendet; alte Designwerte werden automatisch migriert.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.16.0-Build erstellt.
           '@
+            'v0.17.0' = @'
+          ### Diese Version
+          * Light-Mode-Icons auf der Startseite verwenden jetzt helle Flächen und korrekte Kontrastfarben.
+          * Der Header-Verlauf der Startseite ist im Light Mode ein sehr helles Grau.
+          * Die Sidebar hat keinen unnötigen Leerraum mehr unter dem Bearbeiten-Button.
+          * Dunkle externe Webseiten erhalten im RAK-Light-Mode einen kontrollierten hellen Seitenstil; beim Wechsel wird auch der aktive Tab sofort aktualisiert.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.17.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

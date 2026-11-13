@@ -328,3 +328,12 @@ Das RAK-Design wurde vollständig auf die neue monochrome Branding-Grundlage mit
 * Dark Mode: tiefschwarzer Hintergrund, weiße Schrift und kontrastreiche dunkle Flächen.
 * Die Auswahl erfolgt unter Einstellungen > Browserdesign und wird dauerhaft gespeichert.
 * Der Modus gilt für Toolbar, Titelleiste, Sidebar und alle internen Browserseiten. Alte Werte aus v0.15.0 werden automatisch übernommen.
+
+RELEASE 0.17.0
+---------------
+Der Light Mode wurde auf Basis der visuellen Rückmeldung weiter korrigiert:
+
+* Startseiten-Icons verwenden helle Flächen und schwarze Kontrastschrift statt fest codierter dunkler Kästchen.
+* Der Branding-Verlauf im Startseitenkopf ist im Light Mode ein sehr helles Grau.
+* Der Bearbeiten-Button der Sidebar sitzt direkt am App-Bereich, ohne unnötigen Leerraum darunter.
+* Im RAK-Light-Mode erhalten externe Webseiten einen kontrollierten hellen Seitenstil. Der aktive Tab wird beim Umschalten sofort aktualisiert; im Dark Mode bleibt das Webseiten-Design unangetastet.
