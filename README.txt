@@ -368,3 +368,12 @@ RAK enthält jetzt einen Audio-Fokusmodus nach dem Vorbild von Opera GX:
 * Wenn der neue Ton endet oder pausiert bleibt, wird die vorherige Wiedergabe automatisch fortgesetzt.
 * Der Cooldown ist unter Einstellungen > Audio-Fokus zwischen 1 und 10 Sekunden einstellbar. Standardmäßig sind 3 Sekunden aktiv.
 * Beim Wechsel zur Startseite, bei Navigation und beim Schließen eines Tabs oder einer Sidebar-App wird der Fokus sauber freigegeben.
+
+RELEASE 0.20.0
+---------------
+RAK unterstützt jetzt Webseiten-Zoom per Strg/Ctrl + Mausrad:
+
+* Mausrad nach oben vergrößert die aktive Seite.
+* Mausrad nach unten verkleinert die aktive Seite.
+* Die normale Seitenbewegung wird während des Strg/Ctrl-Mausrads unterdrückt.
+* Zoomstufen werden pro Tab und Sidebar-App gespeichert und liegen zwischen 50 % und 250 %.

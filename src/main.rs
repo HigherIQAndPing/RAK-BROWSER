@@ -185,6 +185,17 @@ const AUDIO_FOCUS_SCRIPT: &str = r#"
 })();
 "#;
 
+const ZOOM_SCRIPT: &str = r#"
+(function(){
+  if(window.__rakZoomInstalled)return; window.__rakZoomInstalled=true;
+  document.addEventListener('wheel',function(e){
+    if(!(e.ctrlKey||e.metaKey))return;
+    e.preventDefault(); e.stopPropagation();
+    try{window.ipc&&window.ipc.postMessage('zoom:'+(e.deltaY<0?'in':'out'))}catch(_){ }
+  },{capture:true,passive:false});
+})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
@@ -513,6 +524,7 @@ struct State {
     hard_ram_limit_applied: bool,
     audio_playing: HashSet<String>,
     audio_focus: Option<AudioFocus>,
+    zoom_levels: HashMap<String, f64>,
     passwords: passwords::Vault,
     update_ready: Option<String>,
     blocker_paused: HashSet<String>,
@@ -613,6 +625,25 @@ impl State {
         if self.audio_focus.as_ref().and_then(|f| f.deadline).is_some_and(|d| d <= Instant::now()) {
             self.audio_finish_focus();
         }
+    }
+
+    fn apply_zoom(&self, owner: &str) {
+        let factor = self.zoom_levels.get(owner).copied().unwrap_or(1.0);
+        let script = format!("document.documentElement.style.zoom='{}';", factor);
+        if let Some(id) = owner.strip_prefix("tab:").and_then(|v| v.parse::<u32>().ok()) {
+            if let Some(t) = self.tabs.iter().find(|t| t.id == id && t.kind == Kind::Web) {
+                let _ = t.view.evaluate_script(&script);
+            }
+        } else if let Some(app) = owner.strip_prefix("panel:") {
+            if let Some(view) = self.panels.get(app) { let _ = view.evaluate_script(&script); }
+        }
+    }
+
+    fn zoom_message(&mut self, owner: String, direction: &str) {
+        let current = self.zoom_levels.get(&owner).copied().unwrap_or(1.0);
+        let next = if direction == "in" { current + 0.1 } else { current - 0.1 };
+        self.zoom_levels.insert(owner.clone(), (next.clamp(0.5, 2.5) * 10.0).round() / 10.0);
+        self.apply_zoom(&owner);
     }
 
     /// Ordnet alle Bereiche neu an: oben Tabs/Adressleiste/Lesezeichen, links die Seitenleiste,
@@ -873,6 +904,7 @@ impl State {
             )
             .with_initialization_script(EXTERNAL_THEME_SCRIPT)
             .with_initialization_script(AUDIO_FOCUS_SCRIPT)
+            .with_initialization_script(ZOOM_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -918,6 +950,7 @@ impl State {
                     || body.starts_with("permission-request:")
                     || body.starts_with("reader-available:")
                     || body.starts_with("audio-focus:")
+                    || body.starts_with("zoom:")
                     || body == "shortcut:f11"
                     || body == "shortcut:ctrl-t"
                     || body == "shortcut:ctrl-w"
@@ -939,6 +972,8 @@ impl State {
                         format!("reader-available-id:{id}:{rest}")
                     } else if let Some(rest) = body.strip_prefix("audio-focus:") {
                         format!("audio-focus-id:{id}:{rest}")
+                    } else if let Some(rest) = body.strip_prefix("zoom:") {
+                        format!("zoom-id:{id}:{rest}")
                     } else {
                         body.to_string()
                     };
@@ -1249,12 +1284,15 @@ impl State {
                         h - UI_HEIGHT,
                     ))
                     .with_url(*url)
-                    .with_initialization_script(AUDIO_FOCUS_SCRIPT);
+                    .with_initialization_script(AUDIO_FOCUS_SCRIPT)
+                    .with_initialization_script(ZOOM_SCRIPT);
                 let panel_proxy = self.proxy.clone();
                 let panel_owner = app.to_string();
                 let b = b.with_ipc_handler(move |req| {
                     if let Some(state) = req.body().strip_prefix("audio-focus:") {
                         let _ = panel_proxy.send_event(UserEvent::Ipc(format!("audio-focus-panel:{panel_owner}:{state}")));
+                    } else if let Some(direction) = req.body().strip_prefix("zoom:") {
+                        let _ = panel_proxy.send_event(UserEvent::Ipc(format!("zoom-panel:{panel_owner}:{direction}")));
                     }
                 });
                 if let Ok(v) = attach(b, window, &self.host) {
@@ -1445,6 +1483,7 @@ impl State {
                     };
                     let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({}); window.__rakSetPermission && Object.entries({}).forEach(([k,v])=>window.__rakSetPermission(k,v)); window.__rakSetBrowserTheme && window.__rakSetBrowserTheme('{}'); window.__rakPipAvailable && window.__rakPipAvailable(); window.__rakReaderAvailable && window.__rakReaderAvailable();", paused, json!(perms), browser_theme));
                 }
+                self.apply_zoom(&format!("tab:{id}"));
             }
             UserEvent::OpenUrl { url, source } => {
                 if is_http(&url) {
@@ -1470,6 +1509,17 @@ impl State {
     fn ipc(&mut self, window: &Window, msg: &str) -> bool {
         let (cmd, arg) = msg.split_once(':').unwrap_or((msg, ""));
         match cmd {
+            "zoom-id" => {
+                let mut p = arg.splitn(2, ':');
+                if let (Some(id), Some(direction)) = (p.next(), p.next()) {
+                    self.zoom_message(format!("tab:{id}"), direction);
+                }
+            }
+            "zoom-panel" => {
+                if let Some((app, direction)) = arg.split_once(':') {
+                    self.zoom_message(format!("panel:{app}"), direction);
+                }
+            }
             "audio-focus-id" => {
                 let mut p = arg.splitn(2, ':');
                 if let (Some(id), Some(state)) = (p.next(), p.next()) {
@@ -2401,6 +2451,7 @@ fn main() -> wry::Result<()> {
         hard_ram_limit_applied,
         audio_playing: HashSet::new(),
         audio_focus: None,
+        zoom_levels: HashMap::new(),
         passwords: password_vault,
         update_ready: None,
         blocker_paused: HashSet::new(),
