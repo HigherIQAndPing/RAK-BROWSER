@@ -304,6 +304,11 @@ jobs:
           * Beim Wechsel zur Startseite, bei Navigation und beim Schließen eines Tabs wird der Audio-Fokus sauber freigegeben.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.19.0-Build erstellt.
           '@
+            'v0.20.2' = @'
+          ### Diese Version
+          * Audio-Fokus repariert: Startet ein YouTube-Video, waehrend Spotify in der Seitenleiste laeuft, wird Spotify jetzt zuverlaessig pausiert (RAK wertet den Gesamtzustand der Seite aus statt einzelner Medienelemente).
+          * Auch Player in eingebetteten Frames werden pausiert; stummes Autoplay nimmt keinen Fokus mehr; nach dem Fokus wird nur fortgesetzt, was RAK selbst pausiert hat.
+          '@
             'v0.20.1' = @'
           ### Diese Version
           * Anmeldungen und Cookies bleiben bei neuen Versionen erhalten: Das Profil liegt jetzt fest in %APPDATA%\RAK\WebView2 statt neben der EXE.
