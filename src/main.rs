@@ -309,10 +309,50 @@ fn percent_encode(s: &str) -> String {
     out
 }
 
+/// Ordner für Cookies, Logins und Seitendaten: fest in %APPDATA%\RAK\WebView2, NICHT neben der
+/// EXE. Sonst legt jede neu entpackte Version (anderer Ordner) ein leeres Profil an, und man
+/// müsste sich überall neu anmelden.
+fn web_data_dir() -> PathBuf {
+    let new = store::data_dir().join("WebView2");
+    if !new.exists() {
+        // Einmalige Übernahme des bisherigen Profils, das WebView2 neben der EXE angelegt hat
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(name) = exe.file_name() {
+                let mut n = name.to_os_string();
+                n.push(".WebView2");
+                let old = exe.with_file_name(n);
+                if old.is_dir() && std::fs::rename(&old, &new).is_err() {
+                    let _ = ext::copy_dir(&old, &new);
+                }
+            }
+        }
+    }
+    let _ = std::fs::create_dir_all(&new);
+    new
+}
+
+/// Ein gemeinsamer Web-Kontext für alle (nicht privaten) WebViews. Wird nur im Hauptthread
+/// benutzt, und jeder Builder wird sofort gebaut, bevor der nächste entsteht.
+fn web_context() -> &'static mut wry::WebContext {
+    use std::cell::Cell;
+    thread_local! {
+        static CTX: Cell<*mut wry::WebContext> = const { Cell::new(std::ptr::null_mut()) };
+    }
+    CTX.with(|c| {
+        if c.get().is_null() {
+            let ctx = Box::new(wry::WebContext::new(Some(web_data_dir())));
+            c.set(Box::into_raw(ctx));
+        }
+        // SAFETY: Zeiger stammt aus Box::into_raw und wird nie freigegeben; Zugriff nur im
+        // Hauptthread und nie gleichzeitig (Builder werden nacheinander gebaut).
+        unsafe { &mut *c.get() }
+    })
+}
+
 /// Gemeinsamer Startpunkt für alle WebViews. WebView2 verlangt, dass alle WebViews
 /// desselben Profils den Erweiterungs-Schalter gleich setzen.
 fn new_builder<'a>() -> WebViewBuilder<'a> {
-    let b = WebViewBuilder::new();
+    let b = WebViewBuilder::with_web_context(web_context());
     #[cfg(target_os = "windows")]
     let b = b.with_browser_extensions_enabled(true);
     b

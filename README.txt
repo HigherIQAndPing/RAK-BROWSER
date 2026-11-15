@@ -377,3 +377,10 @@ RAK unterstützt jetzt Webseiten-Zoom per Strg/Ctrl + Mausrad:
 * Mausrad nach unten verkleinert die aktive Seite.
 * Die normale Seitenbewegung wird während des Strg/Ctrl-Mausrads unterdrückt.
 * Zoomstufen werden pro Tab und Sidebar-App gespeichert und liegen zwischen 50 % und 250 %.
+
+ANMELDUNGEN BEI NEUEN VERSIONEN
+-------------------------------
+Cookies, Logins und Seitendaten liegen fest in %APPDATA%\RAK\WebView2 (nicht neben der EXE).
+Eine neue Version in einem anderen Ordner entpacken oder die EXE ersetzen behaelt alle Anmeldungen.
+Ein aelteres Profil neben der EXE (RAK.exe.WebView2) wird beim ersten Start einmalig uebernommen.
+Private Tabs speichern weiterhin nichts.

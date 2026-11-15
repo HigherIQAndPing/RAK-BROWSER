@@ -304,6 +304,11 @@ jobs:
           * Beim Wechsel zur Startseite, bei Navigation und beim Schließen eines Tabs wird der Audio-Fokus sauber freigegeben.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.19.0-Build erstellt.
           '@
+            'v0.20.1' = @'
+          ### Diese Version
+          * Anmeldungen und Cookies bleiben bei neuen Versionen erhalten: Das Profil liegt jetzt fest in %APPDATA%\RAK\WebView2 statt neben der EXE.
+          * Ein vorhandenes Profil neben der EXE (RAK.exe.WebView2) wird beim ersten Start automatisch uebernommen.
+          '@
             'v0.20.0' = @'
           ### Diese Version
           * Strg/Ctrl + Mausrad zoomt Webseiten direkt im aktiven Tab.
