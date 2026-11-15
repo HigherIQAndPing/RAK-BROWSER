@@ -295,6 +295,15 @@ jobs:
           * Der bestehende RAM-Sparmodus für Hintergrundseiten bleibt separat verfügbar.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.18.0-Build erstellt.
           '@
+            'v0.19.0' = @'
+          ### Diese Version
+          * Audio-Fokusmodus nach Opera-GX-Vorbild für Web-Tabs und Sidebar-Apps wie Spotify.
+          * Startet ein neuer Ton, pausiert RAK die bisherige Audio-/Videowiedergabe.
+          * Nach Ende oder Pause des neuen Tons wird die vorherige Wiedergabe nach dem einstellbaren Cooldown fortgesetzt.
+          * Cooldown in Einstellungen zwischen 1 und 10 Sekunden wählbar, Standard: 3 Sekunden.
+          * Beim Wechsel zur Startseite, bei Navigation und beim Schließen eines Tabs wird der Audio-Fokus sauber freigegeben.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.19.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

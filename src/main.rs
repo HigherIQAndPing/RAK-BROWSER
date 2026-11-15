@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::{Duration, Instant};
 use store::Store;
 use tao::{
     event::{ElementState, Event, WindowEvent},
@@ -170,6 +171,20 @@ const EXTERNAL_THEME_SCRIPT: &str = r#"
 })();
 "#;
 
+const AUDIO_FOCUS_SCRIPT: &str = r#"
+(function(){
+  if(window.__rakAudioFocusInstalled)return; window.__rakAudioFocusInstalled=true;
+  const post=s=>{try{window.ipc&&window.ipc.postMessage('audio-focus:'+s)}catch(_){}}, media=()=>[...document.querySelectorAll('audio,video')];
+  let restoring=false;
+  const report=(state,e)=>{if(!restoring&&e&&e.target)post(state)};
+  document.addEventListener('play',e=>report('playing',e),true);
+  document.addEventListener('pause',e=>report('paused',e),true);
+  document.addEventListener('ended',e=>report('ended',e),true);
+  window.__rakAudioPause=()=>media().forEach(m=>{if(!m.paused)m.pause()});
+  window.__rakAudioResume=()=>{restoring=true;media().forEach(m=>{if(m.paused&&!m.ended){const p=m.play();if(p&&p.catch)p.catch(()=>{})}});setTimeout(()=>restoring=false,250)};
+})();
+"#;
+
 /// Alle Apps, die in der Seitenleiste stehen können: (id, Adresse)
 const APPS: [(&str, &str); 5] = [
     ("spotify", "https://open.spotify.com"),
@@ -248,6 +263,12 @@ struct DownloadEntry {
     name: String,
     status: String,
     success: bool,
+}
+
+struct AudioFocus {
+    owner: String,
+    resume: Vec<String>,
+    deadline: Option<Instant>,
 }
 
 fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
@@ -490,6 +511,8 @@ struct State {
     store: Store,
     hard_ram_limiter: hard_ram_limit::Limiter,
     hard_ram_limit_applied: bool,
+    audio_playing: HashSet<String>,
+    audio_focus: Option<AudioFocus>,
     passwords: passwords::Vault,
     update_ready: Option<String>,
     blocker_paused: HashSet<String>,
@@ -510,6 +533,86 @@ impl State {
             x += clamp_width(self.panel_w, win_w) + SPLIT_W;
         }
         x
+    }
+
+    fn audio_eval(&self, owner: &str, script: &str) {
+        if let Some(id) = owner.strip_prefix("tab:").and_then(|v| v.parse::<u32>().ok()) {
+            if let Some(t) = self.tabs.iter().find(|t| t.id == id && t.kind == Kind::Web) {
+                let _ = t.view.evaluate_script(script);
+            }
+        } else if let Some(app) = owner.strip_prefix("panel:") {
+            if let Some(view) = self.panels.get(app) {
+                let _ = view.evaluate_script(script);
+            }
+        }
+    }
+
+    fn audio_finish_focus(&mut self) {
+        let Some(focus) = self.audio_focus.take() else { return };
+        self.audio_eval(&focus.owner, "window.__rakAudioPause&&window.__rakAudioPause();");
+        self.audio_playing.remove(&focus.owner);
+        for owner in focus.resume {
+            self.audio_eval(&owner, "window.__rakAudioResume&&window.__rakAudioResume();");
+            self.audio_playing.insert(owner);
+        }
+    }
+
+    fn audio_release_owner(&mut self, owner: &str) {
+        self.audio_playing.remove(owner);
+        let is_focus_owner = self
+            .audio_focus
+            .as_ref()
+            .map(|focus| focus.owner == owner)
+            .unwrap_or(false);
+        if let Some(focus) = self.audio_focus.as_mut() {
+            focus.resume.retain(|x| x != owner);
+        }
+        if is_focus_owner {
+            self.audio_finish_focus();
+        }
+    }
+
+    fn audio_message(&mut self, owner: String, state: &str) {
+        match state {
+            "playing" => {
+                let old_resume = self
+                    .audio_focus
+                    .as_ref()
+                    .map(|f| f.resume.clone())
+                    .unwrap_or_default();
+                let others: Vec<String> = self
+                    .audio_playing
+                    .iter()
+                    .filter(|x| **x != owner)
+                    .cloned()
+                    .collect();
+                for other in &others {
+                    self.audio_eval(other, "window.__rakAudioPause&&window.__rakAudioPause();");
+                    self.audio_playing.remove(other);
+                }
+                let mut resume: Vec<String> = old_resume.into_iter().filter(|x| x != &owner).collect();
+                for other in others {
+                    if !resume.contains(&other) { resume.push(other); }
+                }
+                self.audio_focus = Some(AudioFocus { owner: owner.clone(), resume, deadline: None });
+                self.audio_playing.insert(owner);
+            }
+            "paused" | "ended" => {
+                self.audio_playing.remove(&owner);
+                if let Some(focus) = self.audio_focus.as_mut() {
+                    if focus.owner == owner && self.audio_playing.iter().all(|x| x != &owner) {
+                        focus.deadline = Some(Instant::now() + Duration::from_secs(self.store.settings.audio_cooldown_secs.clamp(1, 10) as u64));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn audio_tick(&mut self) {
+        if self.audio_focus.as_ref().and_then(|f| f.deadline).is_some_and(|d| d <= Instant::now()) {
+            self.audio_finish_focus();
+        }
     }
 
     /// Ordnet alle Bereiche neu an: oben Tabs/Adressleiste/Lesezeichen, links die Seitenleiste,
@@ -769,6 +872,7 @@ impl State {
                 PERMISSION_READER_SCRIPT.replace("__RAK_TAB_ID__", &id.to_string()),
             )
             .with_initialization_script(EXTERNAL_THEME_SCRIPT)
+            .with_initialization_script(AUDIO_FOCUS_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
             .with_document_title_changed_handler(move |t| {
@@ -813,6 +917,7 @@ impl State {
                     || body.starts_with("pip-available:")
                     || body.starts_with("permission-request:")
                     || body.starts_with("reader-available:")
+                    || body.starts_with("audio-focus:")
                     || body == "shortcut:f11"
                     || body == "shortcut:ctrl-t"
                     || body == "shortcut:ctrl-w"
@@ -831,7 +936,9 @@ impl State {
                     } else if let Some(rest) = body.strip_prefix("permission-request:") {
                         format!("permission-request-id:{rest}")
                     } else if let Some(rest) = body.strip_prefix("reader-available:") {
-                        format!("reader-available-id:{rest}")
+                        format!("reader-available-id:{id}:{rest}")
+                    } else if let Some(rest) = body.strip_prefix("audio-focus:") {
+                        format!("audio-focus-id:{id}:{rest}")
                     } else {
                         body.to_string()
                     };
@@ -982,6 +1089,9 @@ impl State {
         if ids.is_empty() {
             return false;
         }
+        for id in &ids {
+            self.audio_release_owner(&format!("tab:{id}"));
+        }
         for t in self
             .tabs
             .iter()
@@ -1032,6 +1142,12 @@ impl State {
     }
 
     fn open_internal(&mut self, window: &Window, kind: Kind) {
+        if kind == Kind::Home {
+            if let Some(owner) = self.audio_focus.as_ref().map(|f| f.owner.clone()) {
+                self.audio_finish_focus();
+                self.audio_playing.remove(&owner);
+            }
+        }
         if let Some(t) = self.tabs.iter().find(|t| t.kind == kind) {
             self.active = t.id;
             self.islands.expand_tab(self.active);
@@ -1120,6 +1236,7 @@ impl State {
             return;
         }
         if self.open.as_deref() == Some(app) {
+            self.audio_release_owner(&format!("panel:{app}"));
             self.open = None;
         } else {
             if !self.panels.contains_key(app) {
@@ -1131,7 +1248,15 @@ impl State {
                         clamp_width(self.panel_w, w),
                         h - UI_HEIGHT,
                     ))
-                    .with_url(*url);
+                    .with_url(*url)
+                    .with_initialization_script(AUDIO_FOCUS_SCRIPT);
+                let panel_proxy = self.proxy.clone();
+                let panel_owner = app.to_string();
+                let b = b.with_ipc_handler(move |req| {
+                    if let Some(state) = req.body().strip_prefix("audio-focus:") {
+                        let _ = panel_proxy.send_event(UserEvent::Ipc(format!("audio-focus-panel:{panel_owner}:{state}")));
+                    }
+                });
                 if let Ok(v) = attach(b, window, &self.host) {
                     self.panels.insert(app.to_string(), v);
                 } else {
@@ -1161,8 +1286,10 @@ impl State {
         } else {
             // Entfernt = Panel schließen und die Seite beenden (Musik stoppt, Speicher wird frei)
             if self.open.as_deref() == Some(app) {
+                self.audio_release_owner(&format!("panel:{app}"));
                 self.open = None;
             }
+            self.audio_release_owner(&format!("panel:{app}"));
             self.panels.remove(app);
         }
         self.store.save_settings();
@@ -1268,6 +1395,7 @@ impl State {
                 if url == "about:blank" {
                     return false;
                 }
+                self.audio_release_owner(&format!("tab:{id}"));
                 if let Some(t) = self
                     .tabs
                     .iter_mut()
@@ -1342,6 +1470,17 @@ impl State {
     fn ipc(&mut self, window: &Window, msg: &str) -> bool {
         let (cmd, arg) = msg.split_once(':').unwrap_or((msg, ""));
         match cmd {
+            "audio-focus-id" => {
+                let mut p = arg.splitn(2, ':');
+                if let (Some(id), Some(state)) = (p.next(), p.next()) {
+                    self.audio_message(format!("tab:{id}"), state);
+                }
+            }
+            "audio-focus-panel" => {
+                if let Some((app, state)) = arg.split_once(':') {
+                    self.audio_message(format!("panel:{app}"), state);
+                }
+            }
             "blocker-count-id" => {
                 let mut p = arg.splitn(2, ':');
                 if let (Some(id), Some(n)) = (
@@ -1835,6 +1974,11 @@ impl State {
             // entladen; beim Deaktivieren bleiben sie blank bis zur nächsten Aktivierung.
             self.show_only();
         }
+        if let Some(secs) = v["audio_cooldown_secs"].as_u64() {
+            if (1..=10).contains(&secs) {
+                self.store.settings.audio_cooldown_secs = secs as u8;
+            }
+        }
         if let Some(value) = v["hard_ram_limit_enabled"].as_bool() {
             self.store.settings.hard_ram_limit_enabled = value;
         }
@@ -2255,6 +2399,8 @@ fn main() -> wry::Result<()> {
         store,
         hard_ram_limiter,
         hard_ram_limit_applied,
+        audio_playing: HashSet::new(),
+        audio_focus: None,
         passwords: password_vault,
         update_ready: None,
         blocker_paused: HashSet::new(),
@@ -2285,7 +2431,13 @@ fn main() -> wry::Result<()> {
 
     let mut modifiers = ModifiersState::default();
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        st.audio_tick();
+        *control_flow = st
+            .audio_focus
+            .as_ref()
+            .and_then(|f| f.deadline)
+            .map(ControlFlow::WaitUntil)
+            .unwrap_or(ControlFlow::Wait);
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,

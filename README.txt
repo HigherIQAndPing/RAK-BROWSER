@@ -359,3 +359,12 @@ Dieses Release ergänzt einen optionalen harten Speichergrenzwert für Windows:
 * Das Limit bezieht RAK und zugehörige WebView2-Prozesse ein und ist ein Commit-Limit, kein exakt messbarer physischer RAM-Wert.
 * Bei Erreichen des Limits können Speicheranforderungen fehlschlagen oder Seiten beziehungsweise der Browser abstürzen. Aktivierung daher nur mit Bedacht.
 * Der bisherige RAM-Sparmodus zum Entladen inaktiver Hintergrundseiten bleibt davon getrennt.
+
+RELEASE 0.19.0
+---------------
+RAK enthält jetzt einen Audio-Fokusmodus nach dem Vorbild von Opera GX:
+
+* Startet ein neuer Ton oder ein neues Video in einem Web-Tab oder einer Sidebar-App, pausiert RAK die bisherige Audio-/Videowiedergabe.
+* Wenn der neue Ton endet oder pausiert bleibt, wird die vorherige Wiedergabe automatisch fortgesetzt.
+* Der Cooldown ist unter Einstellungen > Audio-Fokus zwischen 1 und 10 Sekunden einstellbar. Standardmäßig sind 3 Sekunden aktiv.
+* Beim Wechsel zur Startseite, bei Navigation und beim Schließen eines Tabs oder einer Sidebar-App wird der Fokus sauber freigegeben.

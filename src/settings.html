@@ -48,6 +48,11 @@
     <div class="row"><div class="label">RAM-Limiter – Hintergrundseiten entladen<small>Es bleibt nur die aktive Webseite geladen. Cookies und Sitzung des Tabs bleiben erhalten.</small></div><input id="ram_saver" type="checkbox"></div>
   </section>
   <section class="card">
+    <h2>Audio-Fokus</h2>
+    <div class="desc">Wenn ein neuer Ton startet, pausiert RAK andere aktive Audio- und Videowiedergaben. Sobald der neue Ton endet oder pausiert bleibt, wird die vorherige Wiedergabe nach dem Cooldown fortgesetzt.</div>
+    <div class="row"><div class="label">Cooldown<small>Wie lange der neue Ton pausiert sein muss, bevor der vorherige Ton zurückkehrt.</small></div><select id="audio_cooldown_secs"><option value="1">1 Sekunde</option><option value="2">2 Sekunden</option><option value="3">3 Sekunden</option><option value="4">4 Sekunden</option><option value="5">5 Sekunden</option><option value="6">6 Sekunden</option><option value="7">7 Sekunden</option><option value="8">8 Sekunden</option><option value="9">9 Sekunden</option><option value="10">10 Sekunden</option></select></div>
+  </section>
+  <section class="card">
     <h2>Harter Speichergrenzwert (Windows)</h2>
     <div class="desc">Optionales Betriebssystemlimit für RAK und zugehörige WebView2-Prozesse. Windows setzt ein Job-Commit-Limit durch; das ist kein exakt messbarer physischer RAM-Wert. Bei Erreichen können Seiten oder der Browser abstürzen bzw. Speicheranforderungen fehlschlagen.</div>
     <div class="row"><div class="label">Harten Grenzwert erzwingen<small>Standardmäßig aus. Erst aktivieren, wenn du die Absturzgefahr bei Erreichen des Limits akzeptierst.</small></div><input id="hard_ram_limit_enabled" type="checkbox"></div>
@@ -115,6 +120,7 @@
     $('design_mode').value = (s.design_mode === 'modern' ? 'light' : s.design_mode === 'dashboard' ? 'dark' : s.design_mode) || 'dark';
     $('auto_translate').checked = !!s.auto_translate;
     $('ram_saver').checked = !!s.ram_saver;
+    $('audio_cooldown_secs').value = String(Math.min(10, Math.max(1, Number(s.audio_cooldown_secs) || 3)));
     $('hard_ram_limit_enabled').checked = !!s.hard_ram_limit_enabled;
     $('hard_ram_limit_mb').value = String(s.hard_ram_limit_mb || 2048);
     const available = !!payload.hard_ram_limiter_available;
@@ -136,7 +142,7 @@
   function save() {
     const colors = {};
     document.querySelectorAll('[data-color]').forEach(input => colors[input.dataset.color] = input.value);
-    const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, auto_translate:$('auto_translate').checked, ram_saver:$('ram_saver').checked, hard_ram_limit_enabled:$('hard_ram_limit_enabled').checked, hard_ram_limit_mb:Number($('hard_ram_limit_mb').value), translate_lang:$('translate_lang').value, colors };
+    const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, auto_translate:$('auto_translate').checked, ram_saver:$('ram_saver').checked, audio_cooldown_secs:Number($('audio_cooldown_secs').value), hard_ram_limit_enabled:$('hard_ram_limit_enabled').checked, hard_ram_limit_mb:Number($('hard_ram_limit_mb').value), translate_lang:$('translate_lang').value, colors };
     if (window.rakApplyDesign) window.rakApplyDesign(settings.design_mode);
     send({t:'settings_save', ...settings});
     $('saved').textContent = 'Gespeichert';
@@ -147,6 +153,7 @@
   $('design_mode').addEventListener('change', save);
   $('auto_translate').addEventListener('change', save);
   $('ram_saver').addEventListener('change', save);
+  $('audio_cooldown_secs').addEventListener('change', save);
   $('hard_ram_limit_enabled').addEventListener('change', save);
   $('hard_ram_limit_mb').addEventListener('change', save);
   $('translate_lang').addEventListener('change', save);

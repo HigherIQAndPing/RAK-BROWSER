@@ -48,6 +48,8 @@ pub struct Settings {
     /// Harter Windows-Job-Object-Speichergrenzwert (Commit-Limit), standardmäßig aus.
     pub hard_ram_limit_enabled: bool,
     pub hard_ram_limit_mb: u32,
+    /// Sekunden, die ein neuer Audiostream pausiert sein muss, bevor vorheriger Ton zurückkehrt.
+    pub audio_cooldown_secs: u8,
     pub translate_lang: String,
     pub design_mode: String,
     pub colors: ThemeColors,
@@ -95,6 +97,7 @@ impl Default for Settings {
             ram_saver: false,
             hard_ram_limit_enabled: false,
             hard_ram_limit_mb: 2048,
+            audio_cooldown_secs: 3,
             translate_lang: "de".into(),
             design_mode: "dark".into(),
             colors: ThemeColors::default(),
