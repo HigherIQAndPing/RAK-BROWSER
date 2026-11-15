@@ -46,7 +46,10 @@ fn unhex(s: &str) -> Option<Vec<u8>> {
     if s.len() % 2 != 0 {
         return None;
     }
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok()).collect()
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
+        .collect()
 }
 
 fn hex(b: &[u8]) -> String {
@@ -57,7 +60,11 @@ fn hex(b: &[u8]) -> String {
 fn parse_ver(v: &str) -> Option<(u64, u64, u64)> {
     let v = v.trim().trim_start_matches('v');
     let mut it = v.split('.');
-    let r = (it.next()?.parse().ok()?, it.next()?.parse().ok()?, it.next()?.parse().ok()?);
+    let r = (
+        it.next()?.parse().ok()?,
+        it.next()?.parse().ok()?,
+        it.next()?.parse().ok()?,
+    );
     if it.next().is_some() {
         return None;
     }
@@ -67,25 +74,49 @@ fn parse_ver(v: &str) -> Option<(u64, u64, u64)> {
 fn fetch(url: &str, dest: &PathBuf, max: u64) -> Result<(), String> {
     let mut cmd = Command::new(if cfg!(windows) { "curl.exe" } else { "curl" });
     // Release-Builds laden ausschließlich per HTTPS (auch bei Weiterleitungen); http nur in Testbuilds.
-    let (proto, redir) = if cfg!(debug_assertions) { ("=https,http", "=https,http") } else { ("=https", "=https") };
-    cmd.args(["-sS", "-L", "-f", "--proto", proto, "--proto-redir", redir, "--max-time", "300", "--max-filesize"])
-        .arg(max.to_string())
-        .arg("-o")
-        .arg(dest)
-        .arg(url);
+    let (proto, redir) = if cfg!(debug_assertions) {
+        ("=https,http", "=https,http")
+    } else {
+        ("=https", "=https")
+    };
+    cmd.args([
+        "-sS",
+        "-L",
+        "-f",
+        "--proto",
+        proto,
+        "--proto-redir",
+        redir,
+        "--max-time",
+        "300",
+        "--max-filesize",
+    ])
+    .arg(max.to_string())
+    .arg("-o")
+    .arg(dest)
+    .arg(url);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x0800_0000);
     }
     let out = cmd.output().map_err(|e| format!("curl: {e}"))?;
-    if out.status.success() { Ok(()) } else { Err(String::from_utf8_lossy(&out.stderr).trim().to_string()) }
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
 }
 
 /// Prüft Manifest + Signatur. Gibt die neue Version zurück, falls eine neuere existiert.
-pub fn verify_manifest(manifest: &[u8], sig: &[u8], key: &VerifyingKey) -> Result<Option<(String, String)>, String> {
+pub fn verify_manifest(
+    manifest: &[u8],
+    sig: &[u8],
+    key: &VerifyingKey,
+) -> Result<Option<(String, String)>, String> {
     let sig: [u8; 64] = sig.try_into().map_err(|_| "Signatur hat falsche Länge")?;
-    key.verify(manifest, &Signature::from_bytes(&sig)).map_err(|_| "Signatur ungültig – Update abgelehnt")?;
+    key.verify(manifest, &Signature::from_bytes(&sig))
+        .map_err(|_| "Signatur ungültig – Update abgelehnt")?;
     let m: Manifest = serde_json::from_slice(manifest).map_err(|e| e.to_string())?;
     let new = parse_ver(&m.version).ok_or("Versionsangabe ungültig")?;
     let cur = parse_ver(VERSION).ok_or("eigene Version ungültig")?;
@@ -125,7 +156,9 @@ pub fn check_and_install() -> Result<Option<String>, String> {
         fetch(&format!("{base}/update.json.sig"), &sp, 1024)?;
         let manifest = fs::read(&mp).map_err(|e| e.to_string())?;
         let sig = fs::read(&sp).map_err(|e| e.to_string())?;
-        let Some((version, sha)) = verify_manifest(&manifest, &sig, &key)? else { return Ok(None) };
+        let Some((version, sha)) = verify_manifest(&manifest, &sig, &key)? else {
+            return Ok(None);
+        };
 
         let newf = exe.with_extension("new");
         let _ = fs::remove_file(&newf);
@@ -138,7 +171,9 @@ pub fn check_and_install() -> Result<Option<String>, String> {
         // Austausch: laufende Datei umbenennen (geht unter Windows), neue an ihren Platz
         let old = exe.with_extension("old");
         let _ = fs::remove_file(&old);
-        fs::rename(&exe, &old).map_err(|e| format!("Austausch nicht möglich ({e}). Liegt RAK in einem geschützten Ordner?"))?;
+        fs::rename(&exe, &old).map_err(|e| {
+            format!("Austausch nicht möglich ({e}). Liegt RAK in einem geschützten Ordner?")
+        })?;
         if let Err(e) = fs::rename(&newf, &exe) {
             let _ = fs::rename(&old, &exe); // zurückrollen
             return Err(format!("Austausch fehlgeschlagen: {e}"));
@@ -189,7 +224,9 @@ mod tests {
         for v in ["0.0.1", VERSION] {
             let m = format!(r#"{{"version":"{v}","sha256":"{}"}}"#, "0".repeat(64));
             let s = key().sign(m.as_bytes()).to_bytes();
-            assert!(verify_manifest(m.as_bytes(), &s, &key().verifying_key()).unwrap().is_none());
+            assert!(verify_manifest(m.as_bytes(), &s, &key().verifying_key())
+                .unwrap()
+                .is_none());
         }
     }
 

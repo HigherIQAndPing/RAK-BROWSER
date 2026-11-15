@@ -43,6 +43,11 @@ pub struct Settings {
     pub panel_width: f64,
     pub search_engine: String,
     pub auto_translate: bool,
+    /// Entlädt Hintergrund-Webseiten, um ihren Speicherbedarf zu reduzieren.
+    pub ram_saver: bool,
+    /// Harter Windows-Job-Object-Speichergrenzwert (Commit-Limit), standardmäßig aus.
+    pub hard_ram_limit_enabled: bool,
+    pub hard_ram_limit_mb: u32,
     pub translate_lang: String,
     pub design_mode: String,
     pub colors: ThemeColors,
@@ -77,10 +82,19 @@ impl Default for ThemeColors {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            sidebar: vec!["spotify".into(), "instagram".into(), "x".into(), "tiktok".into(), "chatgpt".into()],
+            sidebar: vec![
+                "spotify".into(),
+                "instagram".into(),
+                "x".into(),
+                "tiktok".into(),
+                "chatgpt".into(),
+            ],
             panel_width: 380.0,
             search_engine: "duckduckgo".into(),
             auto_translate: false,
+            ram_saver: false,
+            hard_ram_limit_enabled: false,
+            hard_ram_limit_mb: 2048,
             translate_lang: "de".into(),
             design_mode: "dark".into(),
             colors: ThemeColors::default(),
@@ -105,7 +119,10 @@ pub struct Store {
 }
 
 fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 /// JSON, das sicher in ein <script> eingebettet werden kann ("<" kommt nur in Texten vor)
@@ -115,7 +132,9 @@ pub fn script_safe(v: &Value) -> String {
 
 /// Ordner, in dem RAK alle Daten ablegt (unter Windows %APPDATA%\\RAK)
 pub fn data_dir() -> PathBuf {
-    let dir = dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join("RAK");
+    let dir = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("RAK");
     let _ = fs::create_dir_all(&dir);
     dir
 }
@@ -133,7 +152,11 @@ fn session_path() -> PathBuf {
 }
 
 fn save_session_to(path: &std::path::Path, urls: &[String], active: usize, last: &mut String) {
-    let body = serde_json::to_string(&SessionFile { urls: urls.to_vec(), active }).unwrap_or_default();
+    let body = serde_json::to_string(&SessionFile {
+        urls: urls.to_vec(),
+        active,
+    })
+    .unwrap_or_default();
     if body.is_empty() || *last == body {
         return; // unverändert: nicht neu schreiben
     }
@@ -144,8 +167,15 @@ fn save_session_to(path: &std::path::Path, urls: &[String], active: usize, last:
 }
 
 fn load_session_from(path: &std::path::Path) -> (Vec<String>, usize) {
-    let f: SessionFile = fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-    let urls: Vec<String> = f.urls.into_iter().filter(|u| u.starts_with("http://") || u.starts_with("https://")).collect();
+    let f: SessionFile = fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default();
+    let urls: Vec<String> = f
+        .urls
+        .into_iter()
+        .filter(|u| u.starts_with("http://") || u.starts_with("https://"))
+        .collect();
     let active = f.active.min(urls.len().saturating_sub(1));
     (urls, active)
 }
@@ -176,7 +206,11 @@ impl Store {
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
         let mut history: Vec<HistoryEntry> = fs::read_to_string(dir.join("history.jsonl"))
-            .map(|s| s.lines().filter_map(|l| serde_json::from_str(l).ok()).collect())
+            .map(|s| {
+                s.lines()
+                    .filter_map(|l| serde_json::from_str(l).ok())
+                    .collect()
+            })
             .unwrap_or_default();
 
         let max_id = file
@@ -229,10 +263,16 @@ impl Store {
         if self.history.last().map_or(false, |h| h.url == url) {
             return; // gleiche Seite direkt nacheinander nur einmal
         }
-        let entry = HistoryEntry { ts: now(), title: title.to_string(), url: url.to_string() };
+        let entry = HistoryEntry {
+            ts: now(),
+            title: title.to_string(),
+            url: url.to_string(),
+        };
         if let Ok(line) = serde_json::to_string(&entry) {
-            if let Ok(mut f) =
-                OpenOptions::new().create(true).append(true).open(self.dir.join("history.jsonl"))
+            if let Ok(mut f) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(self.dir.join("history.jsonl"))
             {
                 let _ = writeln!(f, "{line}");
             }
@@ -251,7 +291,10 @@ impl Store {
             return;
         }
         if let Some(last) = self.history.last_mut() {
-            if last.url == url && (last.title.is_empty() || last.title == last.url) && last.title != title {
+            if last.url == url
+                && (last.title.is_empty() || last.title == last.url)
+                && last.title != title
+            {
                 last.title = title.to_string();
                 self.rewrite_history();
             }
@@ -289,9 +332,18 @@ impl Store {
 
     pub fn add_bookmark(&mut self, title: &str, url: &str, folder: Option<u32>) {
         let folder = folder.filter(|f| self.folders.iter().any(|x| x.id == *f));
-        let title = if title.trim().is_empty() { url } else { title.trim() };
+        let title = if title.trim().is_empty() {
+            url
+        } else {
+            title.trim()
+        };
         let id = self.new_id();
-        self.bookmarks.push(Bookmark { id, title: title.to_string(), url: url.to_string(), folder });
+        self.bookmarks.push(Bookmark {
+            id,
+            title: title.to_string(),
+            url: url.to_string(),
+            folder,
+        });
         self.save_bookmarks();
     }
 
@@ -319,7 +371,10 @@ impl Store {
             return;
         }
         let id = self.new_id();
-        self.folders.push(Folder { id, name: name.to_string() });
+        self.folders.push(Folder {
+            id,
+            name: name.to_string(),
+        });
         self.save_bookmarks();
     }
 
@@ -377,11 +432,31 @@ mod session_tests {
         save_session_to(&p, &urls, 1, &mut last);
         assert_eq!(load_session_from(&p), (urls.clone(), 1));
         // fremde Schemata werden beim Laden verworfen, Index wird begrenzt
-        fs::write(&p, r#"{"urls":["javascript:alert(1)","file:///etc/passwd","https://c.de/"],"active":9}"#).unwrap();
-        assert_eq!(load_session_from(&p), (vec!["https://c.de/".to_string()], 0));
+        fs::write(
+            &p,
+            r#"{"urls":["javascript:alert(1)","file:///etc/passwd","https://c.de/"],"active":9}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            load_session_from(&p),
+            (vec!["https://c.de/".to_string()], 0)
+        );
         // kaputte Datei -> leer
         fs::write(&p, "kaputt").unwrap();
         assert_eq!(load_session_from(&p), (vec![], 0));
         let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod ram_limit_settings_tests {
+    use super::Settings;
+
+    #[test]
+    fn legacy_settings_disable_hard_ram_limit_by_default() {
+        let settings: Settings = serde_json::from_str("{}").unwrap();
+        assert!(!settings.hard_ram_limit_enabled);
+        assert_eq!(settings.hard_ram_limit_mb, 2048);
+        assert!(!settings.ram_saver);
     }
 }

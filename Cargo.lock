@@ -1985,7 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "rak"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -2003,6 +2003,7 @@ dependencies = [
  "url",
  "urlencoding",
  "wry",
+ "windows-sys 0.61.2",
  "zeroize",
  "zip",
 ]

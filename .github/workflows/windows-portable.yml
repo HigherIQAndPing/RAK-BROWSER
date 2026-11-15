@@ -287,6 +287,14 @@ jobs:
           * Dunkle externe Webseiten erhalten im RAK-Light-Mode einen kontrollierten hellen Seitenstil; beim Wechsel wird auch der aktive Tab sofort aktualisiert.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.17.0-Build erstellt.
           '@
+            'v0.18.0' = @'
+          ### Diese Version
+          * Optionaler harter Windows-Speichergrenzwert über ein Job Object.
+          * Standardmäßig deaktiviert und nur in der Windows-Version wirksam.
+          * Einstellbare Grenzen von 512 MB bis 8.192 MB mit Statusanzeige, ob das Limit erfolgreich angewendet wurde.
+          * Der bestehende RAM-Sparmodus für Hintergrundseiten bleibt separat verfügbar.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.18.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

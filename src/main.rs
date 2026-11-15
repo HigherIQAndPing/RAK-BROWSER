@@ -6,9 +6,9 @@
 
 mod ext;
 mod islands;
+mod passwords;
 mod store;
 mod update;
-mod passwords;
 
 use islands::TabIslands;
 use serde_json::{json, Value};
@@ -125,7 +125,7 @@ const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
 "#;
 
 const PROTECTION_SCRIPT: &str = r#"
-(function(){if(window.__rakProtection)return;window.__rakProtection=true;const bad=/(doubleclick|googlesyndication|google-analytics|googletagmanager|facebook\.net\/.*(pixel|tr)|connect\.facebook|adservice|adsystem|adnxs|taboola|outbrain|scorecardresearch|hotjar|mixpanel|segment\.io|clarity\.ms)/i;let n=0,paused=false;const post=x=>{try{window.ipc&&window.ipc.postMessage(x)}catch(_){}};const count=()=>{if(paused)return;document.querySelectorAll('script[src],img[src],iframe[src],link[href]').forEach(e=>{const u=e.src||e.href;if(bad.test(u)&&!e.dataset.rakBlocked){e.dataset.rakBlocked='1';n++;if(e.tagName==='SCRIPT')e.remove();else e.style.display='none'}});post('blocker-count:'+n)};const oldFetch=window.fetch;if(oldFetch)window.fetch=function(...a){const u=String(a[0]?.url||a[0]||'');if(!paused&&bad.test(u)){n++;post('blocker-count:'+n);return Promise.reject(new Error('RAK blocker'))}return oldFetch.apply(this,a)};const oldOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...r){if(!paused&&bad.test(String(u))){this.__rakBlocked=true;n++;post('blocker-count:'+n)}return oldOpen.call(this,m,this.__rakBlocked?'about:blank':u,...r)};window.__rakProtectionSetPaused=x=>{paused=!!x;post('blocker-count:'+n)};window.__rakPipAvailable=()=>{const active=[...document.querySelectorAll('video')].some(v=>!v.paused&&!v.ended&&v.readyState>2);post('pip-available:'+(active?'1':'0'))};window.__rakPipToggle=async()=>{const v=[...document.querySelectorAll('video')].find(v=>!v.paused&&!v.ended)||document.querySelector('video');if(!v)return;if(document.pictureInPictureElement)await document.exitPictureInPicture();else if(v.requestPictureInPicture)await v.requestPictureInPicture();window.__rakPipAvailable()};new MutationObserver(count).observe(document.documentElement,{subtree:true,childList:true});setInterval(window.__rakPipAvailable,1000);count();window.__rakPipAvailable()})();
+(function(){if(window.__rakProtection)return;window.__rakProtection=true;const bad=/(doubleclick|googlesyndication|google-analytics|googletagmanager|facebook\.net\/.*(pixel|tr)|connect\.facebook|adservice|adsystem|adnxs|taboola|outbrain|scorecardresearch|hotjar|mixpanel|segment\.io|clarity\.ms)/i;let n=0,paused=false;const post=x=>{try{window.ipc&&window.ipc.postMessage(x)}catch(_){}};const count=()=>{if(paused)return;document.querySelectorAll('script[src],img[src],iframe[src],link[href]').forEach(e=>{const u=e.src||e.href;if(bad.test(u)&&!e.dataset.rakBlocked){e.dataset.rakBlocked='1';n++;if(e.tagName==='SCRIPT')e.remove();else e.style.display='none'}});post('blocker-count:'+n)};const oldFetch=window.fetch;if(oldFetch)window.fetch=function(...a){const u=String(a[0]?.url||a[0]||'');if(!paused&&bad.test(u)){n++;post('blocker-count:'+n);return Promise.reject(new Error('RAK blocker'))}return oldFetch.apply(this,a)};const oldOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...r){if(!paused&&bad.test(String(u))){this.__rakBlocked=true;n++;post('blocker-count:'+n)}return oldOpen.call(this,m,this.__rakBlocked?'about:blank':u,...r)};window.__rakProtectionSetPaused=x=>{paused=!!x;post('blocker-count:'+n)};window.__rakPipAvailable=()=>{const active=[...document.querySelectorAll('video')].some(v=>!v.paused&&!v.ended&&v.readyState>2);post('pip-available:'+(active?'1':'0'))};window.__rakPipToggle=async()=>{const v=[...document.querySelectorAll('video')].find(v=>!v.paused&&!v.ended)||document.querySelector('video');if(!v)return;if(document.pictureInPictureElement)await document.exitPictureInPicture();else if(v.requestPictureInPicture)await v.requestPictureInPicture();window.__rakPipAvailable()};let scanTimer;const scheduleCount=()=>{clearTimeout(scanTimer);scanTimer=setTimeout(count,250)};new MutationObserver(scheduleCount).observe(document.documentElement,{subtree:true,childList:true});setInterval(()=>{if(!document.hidden)window.__rakPipAvailable()},5000);count();window.__rakPipAvailable()})();
 "#;
 
 const PERMISSION_READER_SCRIPT: &str = r#"
@@ -144,7 +144,7 @@ const PERMISSION_READER_SCRIPT: &str = r#"
   const reader=()=>{const root=document.querySelector('article,main,[role=main]')||document.body;const text=(root.innerText||'').trim();post('reader-available:'+tabId+':'+(text.length>500?'1':'0'));return root};
   window.__rakReaderAvailable=reader;
   window.__rakReaderToggle=()=>{let box=document.getElementById('__rakReader');if(box){box.remove();document.documentElement.style.overflow='';return}const root=reader(), title=(document.querySelector('h1')||document.querySelector('title'))?.textContent||document.title||'Lesemodus';box=document.createElement('article');box.id='__rakReader';box.innerHTML='<button id="__rakReaderClose" aria-label="Lesemodus schließen">×</button><div class="rak-reader-kicker">RAK · LESEMODUS</div><h1></h1><div class="rak-reader-body"></div>';box.querySelector('h1').textContent=title;box.querySelector('.rak-reader-body').textContent=root.innerText||'';box.style.cssText='position:fixed;inset:0;z-index:2147483647;overflow:auto;background:#f7f3ea;color:#24211d;padding:clamp(28px,7vw,90px) max(22px,calc((100vw - 760px)/2));font:18px/1.75 Georgia,serif;';box.querySelector('h1').style.cssText='font:700 clamp(30px,5vw,52px)/1.1 Georgia,serif;margin:10px 0 28px';box.querySelector('.rak-reader-body').style.whiteSpace='pre-wrap';box.querySelector('.rak-reader-kicker').style.cssText='font:700 11px/1.2 Segoe UI,sans-serif;letter-spacing:.18em;color:#147d92';box.querySelector('#__rakReaderClose').style.cssText='position:fixed;right:24px;top:20px;border:0;border-radius:50%;width:38px;height:38px;background:#147d92;color:#fff;font-size:25px;cursor:pointer';box.querySelector('#__rakReaderClose').onclick=()=>box.remove();document.body.appendChild(box);document.documentElement.style.overflow='hidden'};
-  new MutationObserver(reader).observe(document.documentElement,{subtree:true,childList:true});reader();
+  let readerTimer; new MutationObserver(()=>{clearTimeout(readerTimer);readerTimer=setTimeout(reader,500)}).observe(document.documentElement,{subtree:true,childList:true});reader();
 })();
 "#;
 
@@ -199,8 +199,15 @@ enum UserEvent {
     Update(Option<String>),
     /// Nach Abschluss des nativen Vollbildwechsels die WebView-Geometrie erneut anwenden.
     Relayout,
-    DownloadStarted { url: String, path: String },
-    DownloadCompleted { url: String, path: Option<String>, success: bool },
+    DownloadStarted {
+        url: String,
+        path: String,
+    },
+    DownloadCompleted {
+        url: String,
+        path: Option<String>,
+        success: bool,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -223,6 +230,8 @@ struct Tab {
     view: WebView,
     private: bool,
     kind: Kind,
+    /// WebView-Inhalt temporär entladen; URL bleibt für Reaktivierung erhalten.
+    ram_suspended: bool,
 }
 
 #[derive(Clone)]
@@ -295,7 +304,11 @@ fn is_http(u: &str) -> bool {
 }
 
 fn origin_key(u: &str) -> String {
-    u.split('/').take(3).collect::<Vec<_>>().join("/").to_ascii_lowercase()
+    u.split('/')
+        .take(3)
+        .collect::<Vec<_>>()
+        .join("/")
+        .to_ascii_lowercase()
 }
 
 fn download_target(url: &str, suggested: &PathBuf) -> PathBuf {
@@ -304,42 +317,80 @@ fn download_target(url: &str, suggested: &PathBuf) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("RAK Downloads");
     let _ = std::fs::create_dir_all(&dir);
-    let raw = suggested.file_name().and_then(|n| n.to_str()).filter(|n| !n.is_empty())
+    let raw = suggested
+        .file_name()
+        .and_then(|n| n.to_str())
+        .filter(|n| !n.is_empty())
         .map(str::to_string)
-        .or_else(|| url.split('/').next_back().map(|s| s.split('?').next().unwrap_or(s).to_string()))
+        .or_else(|| {
+            url.split('/')
+                .next_back()
+                .map(|s| s.split('?').next().unwrap_or(s).to_string())
+        })
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "download".into());
-    let safe: String = raw.chars().map(|c| if c.is_control() || "\\/:*?\"<>|".contains(c) { '_' } else { c }).collect();
-    let safe = if safe.is_empty() { "download".into() } else { safe };
+    let safe: String = raw
+        .chars()
+        .map(|c| {
+            if c.is_control() || "\\/:*?\"<>|".contains(c) {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let safe = if safe.is_empty() {
+        "download".into()
+    } else {
+        safe
+    };
     let mut target = dir.join(&safe);
-    let (stem, ext) = match safe.rsplit_once('.') { Some((a, b)) if !a.is_empty() => (a.to_string(), format!(".{b}")), _ => (safe.clone(), String::new()) };
+    let (stem, ext) = match safe.rsplit_once('.') {
+        Some((a, b)) if !a.is_empty() => (a.to_string(), format!(".{b}")),
+        _ => (safe.clone(), String::new()),
+    };
     let mut n = 2;
     while target.exists() {
-        target = dir.join(format!("{stem} ({n}){ext}")); n += 1;
+        target = dir.join(format!("{stem} ({n}){ext}"));
+        n += 1;
     }
     target
 }
 
 fn download_name(path: &str) -> String {
-    PathBuf::from(path).file_name().and_then(|n| n.to_str()).unwrap_or("Download").to_string()
+    PathBuf::from(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Download")
+        .to_string()
 }
 
 fn open_download(path: &str) {
     let p = PathBuf::from(path);
-    if !p.is_absolute() || !p.exists() { return; }
+    if !p.is_absolute() || !p.exists() {
+        return;
+    }
     #[cfg(target_os = "windows")]
-    { let _ = Command::new("explorer").arg(&p).spawn(); }
+    {
+        let _ = Command::new("explorer").arg(&p).spawn();
+    }
     #[cfg(target_os = "macos")]
-    { let _ = Command::new("open").arg(&p).spawn(); }
+    {
+        let _ = Command::new("open").arg(&p).spawn();
+    }
     #[cfg(all(unix, not(target_os = "macos")))]
-    { let _ = Command::new("xdg-open").arg(&p).spawn(); }
+    {
+        let _ = Command::new("xdg-open").arg(&p).spawn();
+    }
 }
 
 fn normalize_with_engine(input: &str, engine: &str) -> String {
     let t = input.trim();
     if is_http(t) {
         t.to_string()
-    } else if (t.contains('.') || t.starts_with("localhost:") || t.starts_with("127.0.0.1:")) && !t.contains(' ') {
+    } else if (t.contains('.') || t.starts_with("localhost:") || t.starts_with("127.0.0.1:"))
+        && !t.contains(' ')
+    {
         format!("https://{t}")
     } else {
         let q = percent_encode(t);
@@ -437,6 +488,8 @@ struct State {
     next_id: u32,
     active: u32,
     store: Store,
+    hard_ram_limiter: hard_ram_limit::Limiter,
+    hard_ram_limit_applied: bool,
     passwords: passwords::Vault,
     update_ready: Option<String>,
     blocker_paused: HashSet<String>,
@@ -465,7 +518,11 @@ impl State {
         let (w, h) = window_size(window);
         let fullscreen = window.fullscreen().is_some();
         let chrome_y = if fullscreen { 0.0 } else { TITLEBAR_HEIGHT };
-        let content_y = if fullscreen { 0.0 } else { chrome_y + CHROME_HEIGHT };
+        let content_y = if fullscreen {
+            0.0
+        } else {
+            chrome_y + CHROME_HEIGHT
+        };
         let body_h = h - content_y;
         place(&self.host, &self.titlebar, 0.0, 0.0, w, TITLEBAR_HEIGHT);
         let _ = self.titlebar.set_visible(!fullscreen);
@@ -511,8 +568,20 @@ impl State {
         });
     }
 
-    fn show_only(&self) {
-        for t in &self.tabs {
+    fn show_only(&mut self) {
+        let ram_saver = self.store.settings.ram_saver;
+        for t in &mut self.tabs {
+            if t.kind == Kind::Web {
+                if t.id == self.active && t.ram_suspended {
+                    // Der WebView bleibt erhalten (inkl. Cookie-/Profilkontext), aber das
+                    // geladene Dokument samt DOM/Renderer-Arbeit wird verworfen.
+                    let _ = t.view.load_url(&t.url);
+                    t.ram_suspended = false;
+                } else if ram_saver && t.id != self.active && !t.ram_suspended {
+                    let _ = t.view.load_url("about:blank");
+                    t.ram_suspended = true;
+                }
+            }
             let _ = t.view.set_visible(t.id == self.active);
         }
     }
@@ -525,7 +594,11 @@ impl State {
             let saved: Vec<&Tab> = self
                 .tabs
                 .iter()
-                .filter(|t| t.kind == Kind::Web && !t.private && (t.url.starts_with("http://") || t.url.starts_with("https://")))
+                .filter(|t| {
+                    t.kind == Kind::Web
+                        && !t.private
+                        && (t.url.starts_with("http://") || t.url.starts_with("https://"))
+                })
                 .collect();
             let urls: Vec<String> = saved.iter().map(|t| t.url.clone()).collect();
             let active = saved.iter().position(|t| t.id == self.active).unwrap_or(0);
@@ -567,11 +640,19 @@ impl State {
 
     fn page_status_js(&self) -> String {
         let blocked = self.blocked_counts.get(&self.active).copied().unwrap_or(0);
-        let paused = self.tabs.iter().find(|t| t.id == self.active).map(|t| self.blocker_paused.contains(&origin_key(&t.url))).unwrap_or(false);
+        let paused = self
+            .tabs
+            .iter()
+            .find(|t| t.id == self.active)
+            .map(|t| self.blocker_paused.contains(&origin_key(&t.url)))
+            .unwrap_or(false);
         let tab = self.tabs.iter().find(|t| t.id == self.active);
         let origin = tab.map(|t| origin_key(&t.url)).unwrap_or_default();
         let perms = self.permissions.get(&origin).cloned().unwrap_or_default();
-        format!("window.rak && window.rak.setPageStatus({});", json!({"blocked":blocked,"paused":paused,"pip":self.pip_available.contains(&self.active),"reader":self.reader_available.contains(&self.active),"origin":origin,"permissions":perms}))
+        format!(
+            "window.rak && window.rak.setPageStatus({});",
+            json!({"blocked":blocked,"paused":paused,"pip":self.pip_available.contains(&self.active),"reader":self.reader_available.contains(&self.active),"origin":origin,"permissions":perms})
+        )
     }
 
     fn push_bookmarks(&self) {
@@ -595,7 +676,7 @@ impl State {
     }
 
     fn push_settings(&self) {
-        let data = json!({ "settings": self.store.settings });
+        let data = json!({ "settings": self.store.settings, "hard_ram_limiter_available": self.hard_ram_limiter.available(), "hard_ram_limit_applied": self.hard_ram_limit_applied });
         let _ = self
             .ui
             .evaluate_script(&format!("window.rak && window.rak.setSettings({});", data));
@@ -609,13 +690,25 @@ impl State {
     }
 
     fn push_design(&self) {
-        let js = format!("window.rakApplyDesign && window.rakApplyDesign({});", json!(self.store.settings.design_mode));
+        let js = format!(
+            "window.rakApplyDesign && window.rakApplyDesign({});",
+            json!(self.store.settings.design_mode)
+        );
         let _ = self.ui.evaluate_script(&js);
         let _ = self.titlebar.evaluate_script(&js);
         let _ = self.side.evaluate_script(&js);
-        let external_mode = if self.store.settings.design_mode == "light" || self.store.settings.design_mode == "modern" { "light" } else { "dark" };
+        let external_mode = if self.store.settings.design_mode == "light"
+            || self.store.settings.design_mode == "modern"
+        {
+            "light"
+        } else {
+            "dark"
+        };
         for t in self.tabs.iter().filter(|t| t.kind == Kind::Web) {
-            let _ = t.view.evaluate_script(&format!("window.__rakSetBrowserTheme && window.__rakSetBrowserTheme('{}');", external_mode));
+            let _ = t.view.evaluate_script(&format!(
+                "window.__rakSetBrowserTheme && window.__rakSetBrowserTheme('{}');",
+                external_mode
+            ));
         }
         for t in self.tabs.iter().filter(|t| t.kind != Kind::Web) {
             let _ = t.view.evaluate_script(&js);
@@ -672,7 +765,9 @@ impl State {
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
             .with_initialization_script(PASSWORD_AUTOFILL_SCRIPT)
             .with_initialization_script(PROTECTION_SCRIPT)
-            .with_initialization_script(PERMISSION_READER_SCRIPT.replace("__RAK_TAB_ID__", &id.to_string()))
+            .with_initialization_script(
+                PERMISSION_READER_SCRIPT.replace("__RAK_TAB_ID__", &id.to_string()),
+            )
             .with_initialization_script(EXTERNAL_THEME_SCRIPT)
             // Privater Tab: eigener, flüchtiger Speicher (keine Cookies/Cache danach)
             .with_incognito(private)
@@ -684,7 +779,7 @@ impl State {
                     PageLoadEvent::Started => UserEvent::Started(id, u),
                     PageLoadEvent::Finished => UserEvent::Loaded(id, u),
                 };
-                    let _ = p_load.send_event(e);
+                let _ = p_load.send_event(e);
             })
             .with_new_window_req_handler(move |u| {
                 let _ = p_new.send_event(UserEvent::OpenUrl {
@@ -696,11 +791,18 @@ impl State {
             .with_download_started_handler(move |url, path| {
                 let target = download_target(&url, path);
                 *path = target.clone();
-                let _ = p_download_started.send_event(UserEvent::DownloadStarted { url, path: target.to_string_lossy().into_owned() });
+                let _ = p_download_started.send_event(UserEvent::DownloadStarted {
+                    url,
+                    path: target.to_string_lossy().into_owned(),
+                });
                 true
             })
             .with_download_completed_handler(move |url, path, success| {
-                let _ = p_download_completed.send_event(UserEvent::DownloadCompleted { url, path: path.map(|p| p.to_string_lossy().into_owned()), success });
+                let _ = p_download_completed.send_event(UserEvent::DownloadCompleted {
+                    url,
+                    path: path.map(|p| p.to_string_lossy().into_owned()),
+                    success,
+                });
             })
             .with_ipc_handler(move |req| {
                 let body = req.body();
@@ -730,7 +832,9 @@ impl State {
                         format!("permission-request-id:{rest}")
                     } else if let Some(rest) = body.strip_prefix("reader-available:") {
                         format!("reader-available-id:{rest}")
-                    } else { body.to_string() };
+                    } else {
+                        body.to_string()
+                    };
                     let _ = p_shortcut.send_event(UserEvent::Ipc(routed));
                 }
             });
@@ -748,7 +852,7 @@ impl State {
             Kind::Extensions => ext::page(),
             Kind::Settings => include_str!("settings.html").replace(
                 "__DATA__",
-                &store::script_safe(&json!({ "settings": self.store.settings })),
+                &store::script_safe(&json!({ "settings": self.store.settings, "hard_ram_limiter_available": self.hard_ram_limiter.available(), "hard_ram_limit_applied": self.hard_ram_limit_applied })),
             ),
             Kind::Passwords => include_str!("passwords.html").to_string(),
             Kind::Explore => include_str!("explore.html").replace("__LAND_DATA__", include_str!("ne_110m_land.geojson")),
@@ -762,10 +866,20 @@ impl State {
             .with_html(html)
             .with_initialization_script(GLOBAL_SHORTCUT_SCRIPT)
             .with_initialization_script(CONTEXT_MENU_SCRIPT)
-            .with_initialization_script(DESIGN_SCRIPT.replace("__RAK_DESIGN__", &self.store.settings.design_mode))
+            .with_initialization_script(
+                DESIGN_SCRIPT.replace("__RAK_DESIGN__", &self.store.settings.design_mode),
+            )
             .with_ipc_handler(move |req| {
                 let body = req.body();
-                if body.starts_with("shortcut:") || body.starts_with("context-open:") || body.starts_with("nav:") || body.starts_with("suggest:") || body.starts_with("blocker-toggle:") || body.starts_with("permission-set:") || body == "pip-toggle" || body == "reader-toggle" {
+                if body.starts_with("shortcut:")
+                    || body.starts_with("context-open:")
+                    || body.starts_with("nav:")
+                    || body.starts_with("suggest:")
+                    || body.starts_with("blocker-toggle:")
+                    || body.starts_with("permission-set:")
+                    || body == "pip-toggle"
+                    || body == "reader-toggle"
+                {
                     let _ = p_ipc.send_event(UserEvent::Ipc(body.to_string()));
                 } else {
                     let _ = p_ipc.send_event(UserEvent::Page(body.to_string()));
@@ -799,6 +913,7 @@ impl State {
                 view,
                 private,
                 kind: Kind::Web,
+                ram_suspended: false,
             });
             self.next_id += 1;
             self.active = id;
@@ -854,16 +969,34 @@ impl State {
 
     /// Auch beim Gruppenschließen bleiben sichtbare Seite und aktiver Tab konsistent.
     fn close_tabs(&mut self, window: &Window, ids: &[u32]) -> bool {
-        let ids: Vec<u32> = ids.iter().copied().filter(|id| {
-            self.tabs.iter().find(|t| t.id == *id).map_or(true, |t| t.kind != Kind::Home)
-        }).collect();
+        let ids: Vec<u32> = ids
+            .iter()
+            .copied()
+            .filter(|id| {
+                self.tabs
+                    .iter()
+                    .find(|t| t.id == *id)
+                    .map_or(true, |t| t.kind != Kind::Home)
+            })
+            .collect();
         if ids.is_empty() {
             return false;
         }
-        for t in self.tabs.iter().filter(|t| ids.contains(&t.id) && t.kind == Kind::Web) {
-            self.closed_tabs.push(ClosedTab { url: t.url.clone(), title: t.title.clone(), private: t.private });
+        for t in self
+            .tabs
+            .iter()
+            .filter(|t| ids.contains(&t.id) && t.kind == Kind::Web)
+        {
+            self.closed_tabs.push(ClosedTab {
+                url: t.url.clone(),
+                title: t.title.clone(),
+                private: t.private,
+            });
         }
-        if self.closed_tabs.len() > 20 { let keep = self.closed_tabs.len() - 20; self.closed_tabs.drain(0..keep); }
+        if self.closed_tabs.len() > 20 {
+            let keep = self.closed_tabs.len() - 20;
+            self.closed_tabs.drain(0..keep);
+        }
         let old_index = self
             .tabs
             .iter()
@@ -876,7 +1009,8 @@ impl State {
             self.open_internal(window, Kind::Home);
             return false;
         }
-        self.tabs.sort_by_key(|t| if t.kind == Kind::Home { 0 } else { 1 });
+        self.tabs
+            .sort_by_key(|t| if t.kind == Kind::Home { 0 } else { 1 });
         if !self.tabs.iter().any(|t| t.id == self.active) {
             self.active = self.tabs[old_index.min(self.tabs.len() - 1)].id;
             self.islands.expand_tab(self.active);
@@ -887,10 +1021,14 @@ impl State {
     }
 
     fn restore_closed_tab(&mut self, window: &Window) {
-        let Some(closed) = self.closed_tabs.pop() else { return; };
+        let Some(closed) = self.closed_tabs.pop() else {
+            return;
+        };
         let id = self.next_id;
         self.new_web_tab(window, &closed.url, closed.private);
-        if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id) { t.title = closed.title; }
+        if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id) {
+            t.title = closed.title;
+        }
     }
 
     fn open_internal(&mut self, window: &Window, kind: Kind) {
@@ -923,6 +1061,7 @@ impl State {
                 view,
                 private: false,
                 kind,
+                ram_suspended: false,
             });
             self.next_id += 1;
             self.active = id;
@@ -946,6 +1085,7 @@ impl State {
                 let t = &mut self.tabs[idx];
                 t.view = view; // die alte interne WebView wird hier freigegeben
                 t.kind = Kind::Web;
+                t.ram_suspended = false;
                 t.url = url.to_string();
                 t.title = String::new();
                 self.layout(window);
@@ -1045,7 +1185,9 @@ impl State {
     /// Gibt true zurück, wenn das Programm beendet werden soll.
     fn push_update(&self) {
         let v = serde_json::to_string(&self.update_ready).unwrap_or_else(|_| "null".into());
-        let _ = self.ui.evaluate_script(&format!("window.rak && window.rak.setUpdate({v});"));
+        let _ = self
+            .ui
+            .evaluate_script(&format!("window.rak && window.rak.setUpdate({v});"));
     }
 
     fn handle(&mut self, window: &Window, ev: UserEvent) -> bool {
@@ -1061,18 +1203,51 @@ impl State {
                 return false;
             }
             UserEvent::DownloadStarted { url, path } => {
-                self.downloads.insert(0, DownloadEntry { name: download_name(&path), url, path, status: "Lädt …".into(), success: false });
+                self.downloads.insert(
+                    0,
+                    DownloadEntry {
+                        name: download_name(&path),
+                        url,
+                        path,
+                        status: "Lädt …".into(),
+                        success: false,
+                    },
+                );
                 self.downloads.truncate(50);
                 self.push_internal();
             }
             UserEvent::DownloadCompleted { url, path, success } => {
                 let path = path.unwrap_or_default();
-                if let Some(d) = self.downloads.iter_mut().find(|d| d.path == path || d.url == url) {
-                    d.status = if success { "Abgeschlossen".into() } else { "Fehlgeschlagen".into() };
+                if let Some(d) = self
+                    .downloads
+                    .iter_mut()
+                    .find(|d| d.path == path || d.url == url)
+                {
+                    d.status = if success {
+                        "Abgeschlossen".into()
+                    } else {
+                        "Fehlgeschlagen".into()
+                    };
                     d.success = success;
-                    if !path.is_empty() { d.path = path; d.name = download_name(&d.path); }
+                    if !path.is_empty() {
+                        d.path = path;
+                        d.name = download_name(&d.path);
+                    }
                 } else {
-                    self.downloads.insert(0, DownloadEntry { name: download_name(&path), url, path, status: if success { "Abgeschlossen".into() } else { "Fehlgeschlagen".into() }, success });
+                    self.downloads.insert(
+                        0,
+                        DownloadEntry {
+                            name: download_name(&path),
+                            url,
+                            path,
+                            status: if success {
+                                "Abgeschlossen".into()
+                            } else {
+                                "Fehlgeschlagen".into()
+                            },
+                            success,
+                        },
+                    );
                 }
                 self.push_internal();
             }
@@ -1090,6 +1265,9 @@ impl State {
                 }
             }
             UserEvent::Started(id, url) => {
+                if url == "about:blank" {
+                    return false;
+                }
                 if let Some(t) = self
                     .tabs
                     .iter_mut()
@@ -1100,6 +1278,9 @@ impl State {
                 }
             }
             UserEvent::Loaded(id, url) => {
+                if url == "about:blank" {
+                    return false;
+                }
                 if self.store.settings.auto_translate
                     && is_http(&url)
                     && !url.starts_with("https://translate.google.com/")
@@ -1110,7 +1291,11 @@ impl State {
                         let _ = t.view.load_url(&translated);
                     }
                 }
-                let perms = self.permissions.get(&origin_key(&url)).cloned().unwrap_or_default();
+                let perms = self
+                    .permissions
+                    .get(&origin_key(&url))
+                    .cloned()
+                    .unwrap_or_default();
                 if let Some(t) = self
                     .tabs
                     .iter_mut()
@@ -1123,7 +1308,13 @@ impl State {
                         self.store.add_history(&url, &title);
                     }
                     let paused = self.blocker_paused.contains(&origin_key(&url));
-                    let browser_theme = if self.store.settings.design_mode == "light" || self.store.settings.design_mode == "modern" { "light" } else { "dark" };
+                    let browser_theme = if self.store.settings.design_mode == "light"
+                        || self.store.settings.design_mode == "modern"
+                    {
+                        "light"
+                    } else {
+                        "dark"
+                    };
                     let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({}); window.__rakSetPermission && Object.entries({}).forEach(([k,v])=>window.__rakSetPermission(k,v)); window.__rakSetBrowserTheme && window.__rakSetBrowserTheme('{}'); window.__rakPipAvailable && window.__rakPipAvailable(); window.__rakReaderAvailable && window.__rakReaderAvailable();", paused, json!(perms), browser_theme));
                 }
             }
@@ -1153,37 +1344,84 @@ impl State {
         match cmd {
             "blocker-count-id" => {
                 let mut p = arg.splitn(2, ':');
-                if let (Some(id), Some(n)) = (p.next().and_then(|x| x.parse::<u32>().ok()), p.next().and_then(|x| x.parse::<u32>().ok())) { self.blocked_counts.insert(id, n); }
+                if let (Some(id), Some(n)) = (
+                    p.next().and_then(|x| x.parse::<u32>().ok()),
+                    p.next().and_then(|x| x.parse::<u32>().ok()),
+                ) {
+                    self.blocked_counts.insert(id, n);
+                }
             }
             "pip-available-id" => {
                 let mut p = arg.splitn(2, ':');
-                if let (Some(id), Some(v)) = (p.next().and_then(|x| x.parse::<u32>().ok()), p.next()) { if v == "1" { self.pip_available.insert(id); } else { self.pip_available.remove(&id); } }
+                if let (Some(id), Some(v)) =
+                    (p.next().and_then(|x| x.parse::<u32>().ok()), p.next())
+                {
+                    if v == "1" {
+                        self.pip_available.insert(id);
+                    } else {
+                        self.pip_available.remove(&id);
+                    }
+                }
             }
             "reader-available-id" => {
                 let mut p = arg.splitn(2, ':');
-                if let (Some(id), Some(v)) = (p.next().and_then(|x| x.parse::<u32>().ok()), p.next()) { if v == "1" { self.reader_available.insert(id); } else { self.reader_available.remove(&id); } }
+                if let (Some(id), Some(v)) =
+                    (p.next().and_then(|x| x.parse::<u32>().ok()), p.next())
+                {
+                    if v == "1" {
+                        self.reader_available.insert(id);
+                    } else {
+                        self.reader_available.remove(&id);
+                    }
+                }
             }
             "permission-request-id" => {
                 let mut p = arg.splitn(3, ':');
                 let id = p.next().and_then(|x| x.parse::<u32>().ok());
                 let kind = p.next().unwrap_or_default().to_string();
-                let origin = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| x.into_owned()).unwrap_or_default();
+                let origin = p
+                    .next()
+                    .and_then(|x| urlencoding::decode(x).ok())
+                    .map(|x| x.into_owned())
+                    .unwrap_or_default();
                 if let Some(id) = id {
                     let key = origin_key(&origin);
-                    if self.permissions.get(&key).and_then(|m| m.get(&kind)).is_none() {
-                        let _ = self.ui.evaluate_script(&format!("window.rak && window.rak.setPermissionRequest({});", json!({"id":id,"type":kind,"origin":key})));
+                    if self
+                        .permissions
+                        .get(&key)
+                        .and_then(|m| m.get(&kind))
+                        .is_none()
+                    {
+                        let _ = self.ui.evaluate_script(&format!(
+                            "window.rak && window.rak.setPermissionRequest({});",
+                            json!({"id":id,"type":kind,"origin":key})
+                        ));
                     }
                 }
             }
             "passwords-request-id" => {
                 let mut p = arg.splitn(2, ':');
                 let id = p.next().and_then(|x| x.parse::<u32>().ok());
-                let raw = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| x.into_owned());
+                let raw = p
+                    .next()
+                    .and_then(|x| urlencoding::decode(x).ok())
+                    .map(|x| x.into_owned());
                 if let (Some(id), Some(page)) = (id, raw) {
-                    if let Some(t) = self.tabs.iter_mut().find(|t| t.id == id && t.kind == Kind::Web) {
-                        if t.url == page || urlencoding::decode(&t.url).map(|x| x == page).unwrap_or(false) {
+                    if let Some(t) = self
+                        .tabs
+                        .iter_mut()
+                        .find(|t| t.id == id && t.kind == Kind::Web)
+                    {
+                        if t.url == page
+                            || urlencoding::decode(&t.url)
+                                .map(|x| x == page)
+                                .unwrap_or(false)
+                        {
                             if let Ok(items) = self.passwords.matching(&t.url) {
-                                let _ = t.view.evaluate_script(&format!("window.__rakFillCredentials({});", json!(items)));
+                                let _ = t.view.evaluate_script(&format!(
+                                    "window.__rakFillCredentials({});",
+                                    json!(items)
+                                ));
                             }
                         }
                     }
@@ -1193,11 +1431,23 @@ impl State {
                 let mut p = arg.splitn(3, ':');
                 let tab = p.next().and_then(|x| x.parse::<u32>().ok());
                 let credential = p.next().and_then(|x| x.parse::<i64>().ok());
-                let page = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| x.into_owned());
+                let page = p
+                    .next()
+                    .and_then(|x| urlencoding::decode(x).ok())
+                    .map(|x| x.into_owned());
                 if let (Some(tab), Some(credential), Some(page)) = (tab, credential, page) {
-                    if let Some(t) = self.tabs.iter_mut().find(|t| t.id == tab && t.kind == Kind::Web) {
-                        if let Ok((username, password)) = self.passwords.secret_for(&page, credential) {
-                            let _ = t.view.evaluate_script(&format!("window.__rakFillSecret({});", json!({"username":username,"password":password})));
+                    if let Some(t) = self
+                        .tabs
+                        .iter_mut()
+                        .find(|t| t.id == tab && t.kind == Kind::Web)
+                    {
+                        if let Ok((username, password)) =
+                            self.passwords.secret_for(&page, credential)
+                        {
+                            let _ = t.view.evaluate_script(&format!(
+                                "window.__rakFillSecret({});",
+                                json!({"username":username,"password":password})
+                            ));
                         }
                     }
                 }
@@ -1240,7 +1490,11 @@ impl State {
                     }
                 }
                 "ctrl-shift-t" => self.restore_closed_tab(window),
-                "ctrl-shift-a" => { let _ = self.ui.evaluate_script("window.rak && window.rak.openTabSearch();"); }
+                "ctrl-shift-a" => {
+                    let _ = self
+                        .ui
+                        .evaluate_script("window.rak && window.rak.openTabSearch();");
+                }
                 _ => {}
             },
             "restart" => {
@@ -1257,49 +1511,115 @@ impl State {
                 self.push_settings();
             }
             "nav" => {
-                let input = urlencoding::decode(arg).map(|v| v.into_owned()).unwrap_or_else(|_| arg.to_string());
+                let input = urlencoding::decode(arg)
+                    .map(|v| v.into_owned())
+                    .unwrap_or_else(|_| arg.to_string());
                 match input.trim() {
                     "rak://start" => self.open_internal(window, Kind::Home),
                     "rak://verlauf" => self.open_internal(window, Kind::History),
                     "rak://lesezeichen" => self.open_internal(window, Kind::Bookmarks),
                     "rak://erweiterungen" => self.open_internal(window, Kind::Extensions),
                     "rak://einstellungen" => self.open_internal(window, Kind::Settings),
-                    "rak://passwoerter" | "browser://passwords" => self.open_internal(window, Kind::Passwords),
+                    "rak://passwoerter" | "browser://passwords" => {
+                        self.open_internal(window, Kind::Passwords)
+                    }
                     "browser://explore" => self.open_internal(window, Kind::Explore),
                     "browser://downloads" => self.open_internal(window, Kind::Downloads),
                     other if !other.is_empty() => {
                         let url = normalize_with_engine(other, &self.store.settings.search_engine);
-                        if self.tabs.iter().any(|t| t.id == self.active && t.kind == Kind::Home) { self.new_web_tab(window, &url, false); } else { self.navigate_active(window, &url); }
+                        if self
+                            .tabs
+                            .iter()
+                            .any(|t| t.id == self.active && t.kind == Kind::Home)
+                        {
+                            self.new_web_tab(window, &url, false);
+                        } else {
+                            self.navigate_active(window, &url);
+                        }
                     }
                     _ => {}
                 }
             }
             "suggest" => {
-                let q = urlencoding::decode(arg).map(|v| v.to_lowercase()).unwrap_or_default();
+                let q = urlencoding::decode(arg)
+                    .map(|v| v.to_lowercase())
+                    .unwrap_or_default();
                 let mut out = Vec::new();
-                for h in self.store.history.iter().rev() { if h.url.to_lowercase().contains(&q) || h.title.to_lowercase().contains(&q) { out.push(json!({"title":h.title,"url":h.url})); } }
-                for b in self.store.bookmarks.iter() { if b.url.to_lowercase().contains(&q) || b.title.to_lowercase().contains(&q) { out.push(json!({"title":b.title,"url":b.url})); } }
-                let _ = self.ui.evaluate_script(&format!("window.rak && window.rak.setSuggestions({});", json!(out.into_iter().take(5).collect::<Vec<_>>())));
+                for h in self.store.history.iter().rev() {
+                    if h.url.to_lowercase().contains(&q) || h.title.to_lowercase().contains(&q) {
+                        out.push(json!({"title":h.title,"url":h.url}));
+                    }
+                }
+                for b in self.store.bookmarks.iter() {
+                    if b.url.to_lowercase().contains(&q) || b.title.to_lowercase().contains(&q) {
+                        out.push(json!({"title":b.title,"url":b.url}));
+                    }
+                }
+                let _ = self.ui.evaluate_script(&format!(
+                    "window.rak && window.rak.setSuggestions({});",
+                    json!(out.into_iter().take(5).collect::<Vec<_>>())
+                ));
             }
             "blocker-toggle" => {
-                let url = urlencoding::decode(arg).map(|v| v.into_owned()).unwrap_or_default(); let key = origin_key(&url);
-                if !self.blocker_paused.remove(&key) { self.blocker_paused.insert(key.clone()); }
-                if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) { let paused = self.blocker_paused.contains(&key); let _ = t.view.evaluate_script(&format!("window.__rakProtectionSetPaused({});", paused)); }
+                let url = urlencoding::decode(arg)
+                    .map(|v| v.into_owned())
+                    .unwrap_or_default();
+                let key = origin_key(&url);
+                if !self.blocker_paused.remove(&key) {
+                    self.blocker_paused.insert(key.clone());
+                }
+                if let Some(t) = self
+                    .tabs
+                    .iter()
+                    .find(|t| t.id == self.active && t.kind == Kind::Web)
+                {
+                    let paused = self.blocker_paused.contains(&key);
+                    let _ = t
+                        .view
+                        .evaluate_script(&format!("window.__rakProtectionSetPaused({});", paused));
+                }
             }
             "pip-toggle" => {
-                if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) { let _ = t.view.evaluate_script("window.__rakPipToggle && window.__rakPipToggle();"); }
+                if let Some(t) = self
+                    .tabs
+                    .iter()
+                    .find(|t| t.id == self.active && t.kind == Kind::Web)
+                {
+                    let _ = t
+                        .view
+                        .evaluate_script("window.__rakPipToggle && window.__rakPipToggle();");
+                }
             }
             "reader-toggle" => {
-                if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) { let _ = t.view.evaluate_script("window.__rakReaderToggle && window.__rakReaderToggle();"); }
+                if let Some(t) = self
+                    .tabs
+                    .iter()
+                    .find(|t| t.id == self.active && t.kind == Kind::Web)
+                {
+                    let _ = t
+                        .view
+                        .evaluate_script("window.__rakReaderToggle && window.__rakReaderToggle();");
+                }
             }
             "permission-set" => {
                 let mut p = arg.splitn(4, ':');
-                let origin = p.next().and_then(|x| urlencoding::decode(x).ok()).map(|x| origin_key(&x)).unwrap_or_default();
+                let origin = p
+                    .next()
+                    .and_then(|x| urlencoding::decode(x).ok())
+                    .map(|x| origin_key(&x))
+                    .unwrap_or_default();
                 let kind = p.next().unwrap_or_default().to_string();
                 let value = p.next().map(|x| x == "allow").unwrap_or(false);
                 if !origin.is_empty() && !kind.is_empty() {
-                    self.permissions.entry(origin.clone()).or_default().insert(kind, value);
-                    if let Some(t) = self.tabs.iter().find(|t| t.id == self.active && t.kind == Kind::Web) {
+                    self.permissions
+                        .entry(origin.clone())
+                        .or_default()
+                        .insert(kind, value);
+                    if let Some(t) = self
+                        .tabs
+                        .iter()
+                        .find(|t| t.id == self.active && t.kind == Kind::Web)
+                    {
                         let state = self.permissions.get(&origin).cloned().unwrap_or_default();
                         let _ = t.view.evaluate_script(&format!("Object.entries({}).forEach(([k,v])=>window.__rakSetPermission&&window.__rakSetPermission(k,v));", json!(state)));
                     }
@@ -1390,7 +1710,11 @@ impl State {
             "explore" => self.open_internal(window, Kind::Explore),
             "downloads" => self.open_internal(window, Kind::Downloads),
             "restore" => self.restore_closed_tab(window),
-            "tab-search" => { let _ = self.ui.evaluate_script("window.rak && window.rak.openTabSearch();"); },
+            "tab-search" => {
+                let _ = self
+                    .ui
+                    .evaluate_script("window.rak && window.rak.openTabSearch();");
+            }
             "translate" => {
                 if let Some(url) = self
                     .tabs
@@ -1505,6 +1829,29 @@ impl State {
         if let Some(value) = v["auto_translate"].as_bool() {
             self.store.settings.auto_translate = value;
         }
+        if let Some(value) = v["ram_saver"].as_bool() {
+            self.store.settings.ram_saver = value;
+            // Umschalten wirkt sofort: beim Aktivieren werden Hintergrund-WebViews
+            // entladen; beim Deaktivieren bleiben sie blank bis zur nächsten Aktivierung.
+            self.show_only();
+        }
+        if let Some(value) = v["hard_ram_limit_enabled"].as_bool() {
+            self.store.settings.hard_ram_limit_enabled = value;
+        }
+        if let Some(mb) = v["hard_ram_limit_mb"]
+            .as_u64()
+            .and_then(|n| u32::try_from(n).ok())
+        {
+            if [512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192].contains(&mb) {
+                self.store.settings.hard_ram_limit_mb = mb;
+            }
+        }
+        // Die OS-Grenze wird live gesetzt/entfernt. Der Job wurde vor WebView2
+        // angelegt, sodass dessen Kindprozesse demselben Limit unterliegen.
+        self.hard_ram_limit_applied = self.hard_ram_limiter.set_limit(
+            self.store.settings.hard_ram_limit_enabled,
+            self.store.settings.hard_ram_limit_mb,
+        );
         if let Some(lang) = v["translate_lang"].as_str() {
             if lang.len() <= 12 && lang.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
                 self.store.settings.translate_lang = lang.to_string();
@@ -1553,7 +1900,11 @@ impl State {
             }
             Some("explore_search") => {
                 if let (Some(lat), Some(lng)) = (v["lat"].as_f64(), v["lng"].as_f64()) {
-                    if lat.is_finite() && lng.is_finite() && (-90.0..=90.0).contains(&lat) && (-180.0..=180.0).contains(&lng) {
+                    if lat.is_finite()
+                        && lng.is_finite()
+                        && (-90.0..=90.0).contains(&lat)
+                        && (-180.0..=180.0).contains(&lng)
+                    {
                         let url = format!("https://www.google.com/maps/search/{lat:.5},{lng:.5}");
                         self.new_web_tab(window, &url, false);
                     }
@@ -1569,8 +1920,8 @@ impl State {
                 Some("new") => self.new_web_tab(
                     window,
                     search_home(&self.store.settings.search_engine),
-                false,
-            ),
+                    false,
+                ),
                 Some("newp") => self.new_web_tab(
                     window,
                     search_home(&self.store.settings.search_engine),
@@ -1580,15 +1931,37 @@ impl State {
                 _ => {}
             },
             Some("download_open") => {
-                if let Some(path) = v["path"].as_str() { open_download(path); }
+                if let Some(path) = v["path"].as_str() {
+                    open_download(path);
+                }
             }
             Some("download_ready") => self.push_internal(),
-            Some("password_unlock") => { let _ = self.passwords.unlock(v["password"].as_str()); }
+            Some("password_unlock") => {
+                let _ = self.passwords.unlock(v["password"].as_str());
+            }
             Some("password_lock") => self.passwords.lock(),
-            Some("password_master_enable") => { let _ = self.passwords.enable_master(v["password"].as_str().unwrap_or("")); }
-            Some("password_master_disable") => { let _ = self.passwords.disable_master(v["password"].as_str().unwrap_or("")); }
-            Some("password_save") => { let _ = self.passwords.save(v["origin"].as_str().unwrap_or(""), v["username"].as_str().unwrap_or(""), v["password"].as_str().unwrap_or("")); }
-            Some("password_delete") => { if let Some(id) = v["id"].as_i64() { let _ = self.passwords.delete(id); } }
+            Some("password_master_enable") => {
+                let _ = self
+                    .passwords
+                    .enable_master(v["password"].as_str().unwrap_or(""));
+            }
+            Some("password_master_disable") => {
+                let _ = self
+                    .passwords
+                    .disable_master(v["password"].as_str().unwrap_or(""));
+            }
+            Some("password_save") => {
+                let _ = self.passwords.save(
+                    v["origin"].as_str().unwrap_or(""),
+                    v["username"].as_str().unwrap_or(""),
+                    v["password"].as_str().unwrap_or(""),
+                );
+            }
+            Some("password_delete") => {
+                if let Some(id) = v["id"].as_i64() {
+                    let _ = self.passwords.delete(id);
+                }
+            }
             Some("passwords_open") => self.open_internal(window, Kind::Passwords),
             Some("hist_del") => {
                 if let (Some(ts), Some(url)) = (v["ts"].as_u64(), v["url"].as_str()) {
@@ -1689,7 +2062,100 @@ impl State {
     }
 }
 
+#[cfg(target_os = "windows")]
+mod hard_ram_limit {
+    use std::{
+        ffi::c_void,
+        mem::{size_of, zeroed},
+        ptr::null,
+    };
+    use windows_sys::Win32::{
+        Foundation::HANDLE,
+        System::{
+            JobObjects::{
+                AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+                SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+                JOB_OBJECT_LIMIT_JOB_MEMORY,
+            },
+            Threading::GetCurrentProcess,
+        },
+    };
+
+    pub struct Limiter {
+        job: HANDLE,
+        available: bool,
+    }
+    impl Limiter {
+        /// Muss vor jeder WebView-Erzeugung laufen, damit WebView2-Unterprozesse
+        /// standardmäßig Mitglied desselben Windows-Jobs werden.
+        pub fn attach() -> Self {
+            unsafe {
+                let job = CreateJobObjectW(null(), null());
+                if job.is_null() {
+                    return Self {
+                        job,
+                        available: false,
+                    };
+                }
+                let available = AssignProcessToJobObject(job, GetCurrentProcess()) != 0;
+                Self { job, available }
+            }
+        }
+        pub fn available(&self) -> bool {
+            self.available
+        }
+        pub fn set_limit(&self, enabled: bool, mb: u32) -> bool {
+            if !self.available || !(512..=8192).contains(&mb) {
+                return false;
+            }
+            unsafe {
+                let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = zeroed();
+                if enabled {
+                    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_JOB_MEMORY;
+                    info.JobMemoryLimit = (mb as usize).saturating_mul(1024 * 1024);
+                }
+                SetInformationJobObject(
+                    self.job,
+                    JobObjectExtendedLimitInformation,
+                    (&mut info as *mut JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast::<c_void>(),
+                    size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                ) != 0
+            }
+        }
+    }
+    impl Drop for Limiter {
+        fn drop(&mut self) {
+            if !self.job.is_null() {
+                unsafe {
+                    windows_sys::Win32::Foundation::CloseHandle(self.job);
+                }
+            }
+        }
+    }
+}
+#[cfg(not(target_os = "windows"))]
+mod hard_ram_limit {
+    pub struct Limiter;
+    impl Limiter {
+        pub fn attach() -> Self {
+            Self
+        }
+        pub fn available(&self) -> bool {
+            false
+        }
+        pub fn set_limit(&self, _enabled: bool, _mb: u32) -> bool {
+            false
+        }
+    }
+}
+
 fn main() -> wry::Result<()> {
+    let store = Store::load();
+    let hard_ram_limiter = hard_ram_limit::Limiter::attach();
+    let hard_ram_limit_applied = hard_ram_limiter.set_limit(
+        store.settings.hard_ram_limit_enabled,
+        store.settings.hard_ram_limit_mb,
+    );
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
 
@@ -1701,8 +2167,8 @@ fn main() -> wry::Result<()> {
         .expect("Fenster konnte nicht erstellt werden");
 
     let host = make_host(&window);
-    let store = Store::load();
-    let password_vault = passwords::Vault::open(&store::data_dir()).expect("Passworttresor konnte nicht geöffnet werden");
+    let password_vault = passwords::Vault::open(&store::data_dir())
+        .expect("Passworttresor konnte nicht geöffnet werden");
     let panel_w = store.settings.panel_width;
 
     // RAK-Titelleiste liegt außerhalb der Browser-Werkzeugleisten.
@@ -1728,7 +2194,9 @@ fn main() -> wry::Result<()> {
         new_builder()
             .with_bounds(rect(0.0, 0.0, w, TITLEBAR_HEIGHT))
             .with_html(include_str!("titlebar.html"))
-            .with_initialization_script(DESIGN_SCRIPT.replace("__RAK_DESIGN__", &store.settings.design_mode))
+            .with_initialization_script(
+                DESIGN_SCRIPT.replace("__RAK_DESIGN__", &store.settings.design_mode),
+            )
             .with_ipc_handler(move |req| {
                 let _ = title_proxy.send_event(UserEvent::Ipc(req.body().to_string()));
             }),
@@ -1761,7 +2229,9 @@ fn main() -> wry::Result<()> {
     let side_builder = new_builder()
         .with_bounds(rect(0.0, UI_HEIGHT, SIDEBAR_W, h - UI_HEIGHT))
         .with_html(include_str!("side.html"))
-        .with_initialization_script(DESIGN_SCRIPT.replace("__RAK_DESIGN__", &store.settings.design_mode))
+        .with_initialization_script(
+            DESIGN_SCRIPT.replace("__RAK_DESIGN__", &store.settings.design_mode),
+        )
         .with_ipc_handler(move |req| {
             let _ = side_proxy.send_event(UserEvent::Ipc(req.body().to_string()));
         });
@@ -1783,6 +2253,8 @@ fn main() -> wry::Result<()> {
         next_id: 1,
         active: 0,
         store,
+        hard_ram_limiter,
+        hard_ram_limit_applied,
         passwords: password_vault,
         update_ready: None,
         blocker_paused: HashSet::new(),
@@ -1840,11 +2312,7 @@ fn main() -> wry::Result<()> {
                 modifiers = state;
             }
             Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        event,
-                        ..
-                    },
+                event: WindowEvent::KeyboardInput { event, .. },
                 ..
             } if event.state == ElementState::Pressed && !event.repeat => {
                 let ctrl = modifiers.control_key();

@@ -57,7 +57,8 @@ pub fn extract_id(input: &str) -> Option<String> {
 /// Wo beginnt das ZIP in einer .crx-Datei? (CRX2 und CRX3; reine ZIPs gehen auch)
 pub fn crx_zip_offset(b: &[u8]) -> Result<usize, String> {
     let u32le = |at: usize| -> Option<usize> {
-        b.get(at..at + 4).map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as usize)
+        b.get(at..at + 4)
+            .map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as usize)
     };
     if b.starts_with(b"PK\x03\x04") {
         return Ok(0);
@@ -92,7 +93,9 @@ pub fn unpack(zip_bytes: &[u8], dest: &Path) -> Result<(), String> {
     let mut total: u64 = 0;
     for i in 0..zip.len() {
         let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
-        let rel = f.enclosed_name().ok_or("Unsicherer Dateipfad in der Erweiterung")?;
+        let rel = f
+            .enclosed_name()
+            .ok_or("Unsicherer Dateipfad in der Erweiterung")?;
         let first = rel
             .components()
             .next()
@@ -123,7 +126,10 @@ pub fn unpack(zip_bytes: &[u8], dest: &Path) -> Result<(), String> {
 pub fn read_info(dir: &Path, id: &str) -> Option<Installed> {
     let raw = fs::read_to_string(dir.join("manifest.json")).ok()?;
     let m: Value = serde_json::from_str(raw.trim_start_matches('\u{feff}')).ok()?;
-    let name = m["name"].as_str().map(|n| localized(dir, &m, n)).filter(|n| !n.trim().is_empty());
+    let name = m["name"]
+        .as_str()
+        .map(|n| localized(dir, &m, n))
+        .filter(|n| !n.trim().is_empty());
     Some(Installed {
         id: id.to_string(),
         name: name.unwrap_or_else(|| id.to_string()),
@@ -133,7 +139,10 @@ pub fn read_info(dir: &Path, id: &str) -> Option<Installed> {
 }
 
 fn localized(dir: &Path, manifest: &Value, text: &str) -> String {
-    let key = match text.strip_prefix("__MSG_").and_then(|t| t.strip_suffix("__")) {
+    let key = match text
+        .strip_prefix("__MSG_")
+        .and_then(|t| t.strip_suffix("__"))
+    {
         Some(k) => k.to_lowercase(),
         None => return text.to_string(),
     };
@@ -146,8 +155,12 @@ fn localized(dir: &Path, manifest: &Value, text: &str) -> String {
     }
     for l in langs {
         let p = dir.join("_locales").join(&l).join("messages.json");
-        let Ok(raw) = fs::read_to_string(p) else { continue };
-        let Ok(v) = serde_json::from_str::<Value>(raw.trim_start_matches('\u{feff}')) else { continue };
+        let Ok(raw) = fs::read_to_string(p) else {
+            continue;
+        };
+        let Ok(v) = serde_json::from_str::<Value>(raw.trim_start_matches('\u{feff}')) else {
+            continue;
+        };
         if let Some(obj) = v.as_object() {
             for (k, val) in obj {
                 if k.to_lowercase() == key {
@@ -187,7 +200,11 @@ pub fn sanitize() {
             let name = e.file_name().to_string_lossy().to_string();
             let ok = p.is_dir() && !name.starts_with('_') && p.join("manifest.json").is_file();
             if !ok {
-                let _ = if p.is_dir() { fs::remove_dir_all(&p) } else { fs::remove_file(&p) };
+                let _ = if p.is_dir() {
+                    fs::remove_dir_all(&p)
+                } else {
+                    fs::remove_file(&p)
+                };
             }
         }
     }
@@ -209,8 +226,11 @@ fn copy_dir(src: &Path, dst: &Path) -> Result<(), String> {
     for entry in fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
         let from = entry.path();
         let to = dst.join(entry.file_name());
-        if from.is_dir() { copy_dir(&from, &to)?; }
-        else if from.is_file() { fs::copy(&from, &to).map_err(|e| e.to_string())?; }
+        if from.is_dir() {
+            copy_dir(&from, &to)?;
+        } else if from.is_file() {
+            fs::copy(&from, &to).map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
 }
@@ -219,24 +239,41 @@ fn profile_roots(browser: &str) -> Vec<PathBuf> {
     let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
     let roaming = std::env::var_os("APPDATA").map(PathBuf::from);
     match browser {
-        "chrome" => local.map(|p| vec![p.join("Google/Chrome/User Data")]).unwrap_or_default(),
-        "brave" => local.map(|p| vec![p.join("BraveSoftware/Brave-Browser/User Data")]).unwrap_or_default(),
-        "edge" => local.map(|p| vec![p.join("Microsoft/Edge/User Data")]).unwrap_or_default(),
-        "opera" => roaming.map(|p| vec![p.join("Opera Software/Opera Stable")]).unwrap_or_default(),
-        "firefox" => roaming.map(|p| vec![p.join("Mozilla/Firefox/Profiles")]).unwrap_or_default(),
+        "chrome" => local
+            .map(|p| vec![p.join("Google/Chrome/User Data")])
+            .unwrap_or_default(),
+        "brave" => local
+            .map(|p| vec![p.join("BraveSoftware/Brave-Browser/User Data")])
+            .unwrap_or_default(),
+        "edge" => local
+            .map(|p| vec![p.join("Microsoft/Edge/User Data")])
+            .unwrap_or_default(),
+        "opera" => roaming
+            .map(|p| vec![p.join("Opera Software/Opera Stable")])
+            .unwrap_or_default(),
+        "firefox" => roaming
+            .map(|p| vec![p.join("Mozilla/Firefox/Profiles")])
+            .unwrap_or_default(),
         _ => Vec::new(),
     }
 }
 
 fn find_extension_dirs(dir: &Path, out: &mut Vec<PathBuf>, budget: &mut usize) {
-    if *budget == 0 { return; }
+    if *budget == 0 {
+        return;
+    }
     *budget -= 1;
-    let Ok(entries) = fs::read_dir(dir) else { return; };
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let p = entry.path();
         if p.is_dir() {
-            if p.join("manifest.json").is_file() { out.push(p); }
-            else { find_extension_dirs(&p, out, budget); }
+            if p.join("manifest.json").is_file() {
+                out.push(p);
+            } else {
+                find_extension_dirs(&p, out, budget);
+            }
         }
     }
 }
@@ -250,15 +287,23 @@ pub fn import_browser(browser: &str) -> Result<Value, String> {
     }
     let mut candidates = Vec::new();
     for root in profile_roots(browser) {
-        if root.exists() { find_extension_dirs(&root, &mut candidates, &mut 40_000); }
+        if root.exists() {
+            find_extension_dirs(&root, &mut candidates, &mut 40_000);
+        }
     }
     let mut imported = Vec::new();
     let mut skipped = 0usize;
     for source in candidates {
-        let id = source.ancestors().find_map(|p| p.file_name().and_then(|n| {
-            let s = n.to_string_lossy(); valid_id(&s).then_some(s.to_string())
-        }));
-        let Some(id) = id else { skipped += 1; continue; };
+        let id = source.ancestors().find_map(|p| {
+            p.file_name().and_then(|n| {
+                let s = n.to_string_lossy();
+                valid_id(&s).then_some(s.to_string())
+            })
+        });
+        let Some(id) = id else {
+            skipped += 1;
+            continue;
+        };
         let target = ext_dir().join(&id);
         let _ = fs::remove_dir_all(&target);
         if copy_dir(&source, &target).is_ok() {
@@ -305,11 +350,22 @@ fn download(id: &str, dest: &Path) -> Result<(), String> {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW: kein Konsolenfenster aufblitzen lassen
     }
-    let out = cmd.output().map_err(|e| format!("curl konnte nicht gestartet werden ({e}). Ab Windows 10 ist curl eigentlich dabei."))?;
+    let out = cmd.output().map_err(|e| {
+        format!(
+            "curl konnte nicht gestartet werden ({e}). Ab Windows 10 ist curl eigentlich dabei."
+        )
+    })?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr);
         let err = err.trim();
-        return Err(format!("Download fehlgeschlagen: {}", if err.is_empty() { "unbekannter Fehler" } else { err }));
+        return Err(format!(
+            "Download fehlgeschlagen: {}",
+            if err.is_empty() {
+                "unbekannter Fehler"
+            } else {
+                err
+            }
+        ));
     }
     Ok(())
 }
@@ -336,7 +392,8 @@ fn install_in(id: &str, work: &Path) -> Result<Installed, String> {
     let off = crx_zip_offset(&bytes)?;
     let unpacked = work.join("x");
     unpack(&bytes[off..], &unpacked)?;
-    let info = read_info(&unpacked, id).ok_or("Die Erweiterung enthält keine gültige manifest.json")?;
+    let info =
+        read_info(&unpacked, id).ok_or("Die Erweiterung enthält keine gültige manifest.json")?;
 
     let target = ext_dir().join(id);
     if target.exists() {
@@ -402,7 +459,9 @@ mod tests {
     fn id_aus_adressen() {
         assert_eq!(extract_id(ID).as_deref(), Some(ID));
         assert_eq!(extract_id(&format!("  {ID}  ")).as_deref(), Some(ID));
-        let neu = format!("https://chromewebstore.google.com/detail/ublock-origin-lite/{ID}?hl=de&utm_source=x");
+        let neu = format!(
+            "https://chromewebstore.google.com/detail/ublock-origin-lite/{ID}?hl=de&utm_source=x"
+        );
         assert_eq!(extract_id(&neu).as_deref(), Some(ID));
         let alt = format!("https://chrome.google.com/webstore/detail/{ID}");
         assert_eq!(extract_id(&alt).as_deref(), Some(ID));
@@ -428,8 +487,14 @@ mod tests {
     #[test]
     fn entpacken_und_manifest_lesen() {
         let z = make_zip(&[
-            ("manifest.json", r#"{"manifest_version":3,"name":"__MSG_appName__","version":"1.2.3","default_locale":"en"}"#),
-            ("_locales/en/messages.json", r#"{"AppName":{"message":"Super Blocker"}}"#),
+            (
+                "manifest.json",
+                r#"{"manifest_version":3,"name":"__MSG_appName__","version":"1.2.3","default_locale":"en"}"#,
+            ),
+            (
+                "_locales/en/messages.json",
+                r#"{"AppName":{"message":"Super Blocker"}}"#,
+            ),
             ("_metadata/verified_contents.json", "geheim"),
             ("js/content.js", "console.log(1)"),
         ]);
@@ -438,7 +503,10 @@ mod tests {
         unpack(&z, &dir).unwrap();
         assert!(dir.join("js/content.js").is_file());
         assert!(dir.join("_locales/en/messages.json").is_file());
-        assert!(!dir.join("_metadata").exists(), "_metadata muss fehlen (WebView2 lehnt es ab)");
+        assert!(
+            !dir.join("_metadata").exists(),
+            "_metadata muss fehlen (WebView2 lehnt es ab)"
+        );
         let info = read_info(&dir, ID).unwrap();
         assert_eq!(info.name, "Super Blocker");
         assert_eq!(info.version, "1.2.3");
@@ -462,7 +530,11 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         assert!(read_info(&dir, ID).is_none());
-        fs::write(dir.join("manifest.json"), "\u{feff}{\"name\":\"__MSG_fehlt__\",\"version\":\"2\"}").unwrap();
+        fs::write(
+            dir.join("manifest.json"),
+            "\u{feff}{\"name\":\"__MSG_fehlt__\",\"version\":\"2\"}",
+        )
+        .unwrap();
         assert_eq!(read_info(&dir, ID).unwrap().name, "__MSG_fehlt__"); // lieber unübersetzt als leer
         let _ = fs::remove_dir_all(&dir);
     }

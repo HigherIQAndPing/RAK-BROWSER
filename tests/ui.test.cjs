@@ -309,3 +309,16 @@ test('standalone preview instructs RAK.exe/start.bat rather than Cargo; legacy t
   assert.doesNotMatch(f.d.getElementById('url').placeholder, /cargo/i);
   f.w.rak.setTabs([tab(1)], 1); assert.ok(f.tab(1)); f.done();
 });
+
+test('hard Windows memory limit is opt-in, bounded, and reported in settings', () => {
+  const settings = fs.readFileSync(path.join(__dirname, '../src/settings.html'), 'utf8');
+  const store = fs.readFileSync(path.join(__dirname, '../src/store.rs'), 'utf8');
+  assert.match(settings, /id="hard_ram_limit_enabled"/);
+  assert.match(settings, /id="hard_ram_limit_mb"/);
+  assert.match(settings, /hard_ram_limit_applied/);
+  assert.match(store, /hard_ram_limit_enabled: bool/);
+  assert.match(store, /hard_ram_limit_enabled: false/);
+  assert.match(mainRs, /JOB_OBJECT_LIMIT_JOB_MEMORY/);
+  assert.match(mainRs, /AssignProcessToJobObject/);
+  assert.match(mainRs, /hard_ram_limiter\.set_limit/);
+});

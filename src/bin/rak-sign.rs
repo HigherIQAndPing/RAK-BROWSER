@@ -8,7 +8,10 @@ use std::{env, fs, process::exit};
 fn unhex(s: &str) -> Option<Vec<u8>> {
     let s = s.trim();
     (s.len() % 2 == 0).then_some(())?;
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok()).collect()
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
+        .collect()
 }
 
 fn main() {
@@ -17,13 +20,19 @@ fn main() {
         eprintln!("Aufruf: rak-sign <RAK.exe> <version> <ausgabeordner>");
         exit(2);
     }
-    let key = env::var("RAK_SIGNING_KEY").ok().and_then(|k| unhex(&k)).and_then(|k| <[u8; 32]>::try_from(k).ok());
+    let key = env::var("RAK_SIGNING_KEY")
+        .ok()
+        .and_then(|k| unhex(&k))
+        .and_then(|k| <[u8; 32]>::try_from(k).ok());
     let Some(key) = key else {
         eprintln!("RAK_SIGNING_KEY fehlt oder ist kein 64-stelliger Hex-Wert");
         exit(1);
     };
     let bytes = fs::read(&a[1]).expect("EXE nicht lesbar");
-    let sha: String = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
+    let sha: String = Sha256::digest(&bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
     let version = a[2].trim_start_matches('v');
     let manifest = format!("{{\"version\":\"{version}\",\"sha256\":\"{sha}\"}}");
     let sig = SigningKey::from_bytes(&key).sign(manifest.as_bytes());

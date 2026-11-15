@@ -43,6 +43,18 @@
   </section>
 
   <section class="card">
+    <h2>Arbeitsspeicher</h2>
+    <div class="desc">Der RAM-Sparmodus entlädt inaktive Webseiten und lädt sie beim Zurückwechseln neu. Das reduziert den Speicherbedarf der Hintergrundseiten; Scrollposition und nicht gespeicherter Seitenzustand gehen dabei verloren.</div>
+    <div class="row"><div class="label">RAM-Limiter – Hintergrundseiten entladen<small>Es bleibt nur die aktive Webseite geladen. Cookies und Sitzung des Tabs bleiben erhalten.</small></div><input id="ram_saver" type="checkbox"></div>
+  </section>
+  <section class="card">
+    <h2>Harter Speichergrenzwert (Windows)</h2>
+    <div class="desc">Optionales Betriebssystemlimit für RAK und zugehörige WebView2-Prozesse. Windows setzt ein Job-Commit-Limit durch; das ist kein exakt messbarer physischer RAM-Wert. Bei Erreichen können Seiten oder der Browser abstürzen bzw. Speicheranforderungen fehlschlagen.</div>
+    <div class="row"><div class="label">Harten Grenzwert erzwingen<small>Standardmäßig aus. Erst aktivieren, wenn du die Absturzgefahr bei Erreichen des Limits akzeptierst.</small></div><input id="hard_ram_limit_enabled" type="checkbox"></div>
+    <div class="row"><div class="label">Grenzwert</div><select id="hard_ram_limit_mb"><option value="512">512 MB</option><option value="768">768 MB</option><option value="1024">1.024 MB</option><option value="1536">1.536 MB</option><option value="2048">2.048 MB</option><option value="3072">3.072 MB</option><option value="4096">4.096 MB</option><option value="6144">6.144 MB</option><option value="8192">8.192 MB</option></select></div>
+    <div id="hard_ram_status" class="tip" aria-live="polite"></div>
+  </section>
+  <section class="card">
     <h2>Passwortmanager</h2>
     <div class="desc">Lokaler, verschlüsselter Tresor mit optionalem Master-Passwort und origin-geprüftem Autofill.</div>
     <button id="passwords_open" type="button" style="height:36px;border:0;border-radius:9px;padding:0 14px;color:#081216;background:var(--accent);font-weight:700;cursor:pointer">Passwörter verwalten</button>
@@ -102,6 +114,14 @@
     $('search_engine').value = s.search_engine || 'duckduckgo';
     $('design_mode').value = (s.design_mode === 'modern' ? 'light' : s.design_mode === 'dashboard' ? 'dark' : s.design_mode) || 'dark';
     $('auto_translate').checked = !!s.auto_translate;
+    $('ram_saver').checked = !!s.ram_saver;
+    $('hard_ram_limit_enabled').checked = !!s.hard_ram_limit_enabled;
+    $('hard_ram_limit_mb').value = String(s.hard_ram_limit_mb || 2048);
+    const available = !!payload.hard_ram_limiter_available;
+    const applied = !!payload.hard_ram_limit_applied;
+    $('hard_ram_status').textContent = !available ? 'Nicht verfügbar: Windows konnte RAK nicht in ein Job Object aufnehmen. Ein anderes Prozesslimit oder eine Windows-Richtlinie kann die Ursache sein.' : (s.hard_ram_limit_enabled ? (applied ? 'Hard-Limit aktiv (Job Commit-Limit).' : 'Aktivierung fehlgeschlagen; es gilt derzeit kein Hard-Limit.') : 'Bereit, derzeit deaktiviert.');
+    $('hard_ram_limit_enabled').disabled = !available;
+    $('hard_ram_limit_mb').disabled = !available;
     $('translate_lang').value = s.translate_lang || 'de';
     const colors = s.colors || {};
     document.querySelectorAll('[data-color]').forEach(input => input.value = colors[input.dataset.color] || '#0d0d12');
@@ -116,7 +136,7 @@
   function save() {
     const colors = {};
     document.querySelectorAll('[data-color]').forEach(input => colors[input.dataset.color] = input.value);
-    const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, auto_translate:$('auto_translate').checked, translate_lang:$('translate_lang').value, colors };
+    const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, auto_translate:$('auto_translate').checked, ram_saver:$('ram_saver').checked, hard_ram_limit_enabled:$('hard_ram_limit_enabled').checked, hard_ram_limit_mb:Number($('hard_ram_limit_mb').value), translate_lang:$('translate_lang').value, colors };
     if (window.rakApplyDesign) window.rakApplyDesign(settings.design_mode);
     send({t:'settings_save', ...settings});
     $('saved').textContent = 'Gespeichert';
@@ -126,6 +146,9 @@
   $('search_engine').addEventListener('change', save);
   $('design_mode').addEventListener('change', save);
   $('auto_translate').addEventListener('change', save);
+  $('ram_saver').addEventListener('change', save);
+  $('hard_ram_limit_enabled').addEventListener('change', save);
+  $('hard_ram_limit_mb').addEventListener('change', save);
   $('translate_lang').addEventListener('change', save);
   $('import_btn').addEventListener('click', () => {
     $('import_btn').disabled = true;

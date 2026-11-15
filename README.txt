@@ -153,9 +153,20 @@ Import           In Einstellungen koennen kompatible Erweiterungen aus Chrome,
                  Edge, Brave und Opera/Opera GX aus den lokalen Profilen
                  importiert werden. Firefox wird durchsucht; inkompatible XPI-
                  Erweiterungen werden uebersprungen. Danach RAK neu starten.
-Einstellungen   Zahnrad: Suchmaschine, automatische Uebersetzung und Farben
-                fuer Tab-Leiste, Tabs, Werkzeugleiste, Lesezeichenleiste,
-                Seitenleiste, Akzent und Text anpassen.
+Einstellungen   Zahnrad: Suchmaschine, automatische Uebersetzung, RAM-Sparmodus
+                und Farben fuer Tab-Leiste, Tabs, Werkzeugleiste,
+                Lesezeichenleiste, Seitenleiste, Akzent und Text anpassen.
+RAM-Sparmodus   Entlaedt optional Hintergrund-Webseiten in about:blank und laedt
+                sie beim Aktivieren erneut. Cookies und WebView-Sitzung bleiben;
+                Seitenzustand wie Scrollposition muss neu aufgebaut werden.
+Harter RAM-Limiter (Windows): Einstellungen bieten einen optionalen, vom Windows-
+                Job-Object erzwungenen Commit-Speichergrenzwert fuer RAK und
+                WebView2-Unterprozesse (512-8192 MB). Standardmaessig deaktiviert.
+                Das ist keine starre Grenze des physischen Arbeitssatzes. Wenn das
+                Limit erreicht wird, koennen Speicheranforderungen fehlschlagen
+                oder Tabs/Browser abstuerzen. Auf Windows 10/11 aktivieren; in
+                eingeschraenkten Prozessumgebungen kann Windows das Job Object
+                verweigern. Der Status wird in den Einstellungen angezeigt.
 Uebersetzen     Uebersetzung der aktuellen Seite; automatische Uebersetzung
                 nutzt Google Uebersetzer und benoetigt eine Internetverbindung.
 
@@ -337,3 +348,14 @@ Der Light Mode wurde auf Basis der visuellen Rückmeldung weiter korrigiert:
 * Der Branding-Verlauf im Startseitenkopf ist im Light Mode ein sehr helles Grau.
 * Der Bearbeiten-Button der Sidebar sitzt direkt am App-Bereich, ohne unnötigen Leerraum darunter.
 * Im RAK-Light-Mode erhalten externe Webseiten einen kontrollierten hellen Seitenstil. Der aktive Tab wird beim Umschalten sofort aktualisiert; im Dark Mode bleibt das Webseiten-Design unangetastet.
+
+RELEASE 0.18.0
+---------------
+Dieses Release ergänzt einen optionalen harten Speichergrenzwert für Windows:
+
+* Über Einstellungen > Arbeitsspeicher kann ein Windows-Job-Object-Limit aktiviert werden.
+* Der Grenzwert ist standardmäßig deaktiviert und kann zwischen 512 MB und 8.192 MB gewählt werden.
+* RAK zeigt an, ob das Limit erfolgreich angewendet wurde.
+* Das Limit bezieht RAK und zugehörige WebView2-Prozesse ein und ist ein Commit-Limit, kein exakt messbarer physischer RAM-Wert.
+* Bei Erreichen des Limits können Speicheranforderungen fehlschlagen oder Seiten beziehungsweise der Browser abstürzen. Aktivierung daher nur mit Bedacht.
+* Der bisherige RAM-Sparmodus zum Entladen inaktiver Hintergrundseiten bleibt davon getrennt.
