@@ -221,7 +221,7 @@ pub fn remove(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn copy_dir(src: &Path, dst: &Path) -> Result<(), String> {
+pub fn copy_dir(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
         let from = entry.path();
