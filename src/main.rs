@@ -174,14 +174,27 @@ const EXTERNAL_THEME_SCRIPT: &str = r#"
 const AUDIO_FOCUS_SCRIPT: &str = r#"
 (function(){
   if(window.__rakAudioFocusInstalled)return; window.__rakAudioFocusInstalled=true;
-  const post=s=>{try{window.ipc&&window.ipc.postMessage('audio-focus:'+s)}catch(_){}}, media=()=>[...document.querySelectorAll('audio,video')];
-  let restoring=false;
-  const report=(state,e)=>{if(!restoring&&e&&e.target)post(state)};
-  document.addEventListener('play',e=>report('playing',e),true);
-  document.addEventListener('pause',e=>report('paused',e),true);
-  document.addEventListener('ended',e=>report('ended',e),true);
-  window.__rakAudioPause=()=>media().forEach(m=>{if(!m.paused)m.pause()});
-  window.__rakAudioResume=()=>{restoring=true;media().forEach(m=>{if(m.paused&&!m.ended){const p=m.play();if(p&&p.catch)p.catch(()=>{})}});setTimeout(()=>restoring=false,250)};
+  // Jede Seite/jeder Frame meldet den GESAMTZUSTAND ("spielt irgendwas hörbar?") statt einzelner
+  // Elemente. Sonst überschreibt beim Titelwechsel (neues Element play, altes pause) ein spätes
+  // "pause" das "play" -> RAK hielt z.B. Spotify für gestoppt und ließ es weiterlaufen.
+  const fid=Math.random().toString(36).slice(2,10);
+  const post=s=>{try{window.ipc&&window.ipc.postMessage('audio-focus:'+s+'@'+fid)}catch(_){}};
+  const known=new Set(), pausedByUs=new Set();
+  const dom=()=>{const out=[];const walk=root=>{root.querySelectorAll('audio,video').forEach(m=>out.push(m));root.querySelectorAll('*').forEach(e=>{if(e.shadowRoot)walk(e.shadowRoot)})};try{walk(document)}catch(_){}return out};
+  const media=()=>{known.forEach(m=>{if(m.paused&&!m.isConnected)known.delete(m)});const s=new Set(dom());known.forEach(m=>s.add(m));return [...s]};
+  const audible=m=>!m.paused&&!m.ended&&!m.muted&&m.volume>0;
+  const current=()=>media().some(audible)?'playing':'paused';
+  let restoring=false,last='paused',timer=0;
+  const evaluate=()=>{timer=0;if(restoring)return;const s=current();if(s!==last){last=s;post(s)}};
+  const sched=()=>{if(!timer)timer=setTimeout(evaluate,80)};
+  ['play','playing','pause','ended','emptied','volumechange','abort'].forEach(t=>document.addEventListener(t,sched,true));
+  // Auch Elemente, die nie im Dokument hängen (new Audio()), werden über play() erfasst
+  try{const P=HTMLMediaElement.prototype,op=P.play;P.play=function(){try{if(!known.has(this)){known.add(this);['play','playing','pause','ended','emptied','volumechange'].forEach(t=>this.addEventListener(t,sched,true))}}catch(_){}return op.apply(this,arguments)}}catch(_){}
+  window.addEventListener('pagehide',()=>{if(last!=='paused'){last='paused';post('paused')}});
+  const frames=cmd=>{try{document.querySelectorAll('iframe,frame').forEach(f=>{try{f.contentWindow.postMessage({__rakAudio:cmd},'*')}catch(_){}})}catch(_){}};
+  window.__rakAudioPause=()=>{media().forEach(m=>{if(!m.paused){pausedByUs.add(m);m.pause()}});frames('pause')};
+  window.__rakAudioResume=()=>{restoring=true;pausedByUs.forEach(m=>{if(m.paused&&!m.ended){const p=m.play();if(p&&p.catch)p.catch(()=>{})}});pausedByUs.clear();frames('resume');setTimeout(()=>{restoring=false;last=current()},1200)};
+  window.addEventListener('message',e=>{if(e.source!==window.parent||!e.data||!e.data.__rakAudio)return;e.data.__rakAudio==='pause'?window.__rakAudioPause():window.__rakAudioResume()});
 })();
 "#;
 
@@ -563,6 +576,8 @@ struct State {
     hard_ram_limiter: hard_ram_limit::Limiter,
     hard_ram_limit_applied: bool,
     audio_playing: HashSet<String>,
+    /// Welche Frames je Besitzer gerade hörbar spielen (Seite + eingebettete Player)
+    audio_frames: HashMap<String, HashSet<String>>,
     audio_focus: Option<AudioFocus>,
     zoom_levels: HashMap<String, f64>,
     passwords: passwords::Vault,
@@ -603,6 +618,7 @@ impl State {
         let Some(focus) = self.audio_focus.take() else { return };
         self.audio_eval(&focus.owner, "window.__rakAudioPause&&window.__rakAudioPause();");
         self.audio_playing.remove(&focus.owner);
+        self.audio_frames.remove(&focus.owner);
         for owner in focus.resume {
             self.audio_eval(&owner, "window.__rakAudioResume&&window.__rakAudioResume();");
             self.audio_playing.insert(owner);
@@ -611,6 +627,7 @@ impl State {
 
     fn audio_release_owner(&mut self, owner: &str) {
         self.audio_playing.remove(owner);
+        self.audio_frames.remove(owner);
         let is_focus_owner = self
             .audio_focus
             .as_ref()
@@ -625,8 +642,11 @@ impl State {
     }
 
     fn audio_message(&mut self, owner: String, state: &str) {
+        // Format: "<zustand>@<frame-id>"
+        let (state, frame) = state.split_once('@').unwrap_or((state, ""));
         match state {
             "playing" => {
+                self.audio_frames.entry(owner.clone()).or_default().insert(frame.to_string());
                 let old_resume = self
                     .audio_focus
                     .as_ref()
@@ -641,6 +661,7 @@ impl State {
                 for other in &others {
                     self.audio_eval(other, "window.__rakAudioPause&&window.__rakAudioPause();");
                     self.audio_playing.remove(other);
+                    self.audio_frames.remove(other);
                 }
                 let mut resume: Vec<String> = old_resume.into_iter().filter(|x| x != &owner).collect();
                 for other in others {
@@ -650,6 +671,13 @@ impl State {
                 self.audio_playing.insert(owner);
             }
             "paused" | "ended" => {
+                if let Some(frames) = self.audio_frames.get_mut(&owner) {
+                    frames.remove(frame);
+                    if !frames.is_empty() {
+                        return; // ein anderer Frame (z.B. eingebetteter Player) spielt noch
+                    }
+                    self.audio_frames.remove(&owner);
+                }
                 self.audio_playing.remove(&owner);
                 if let Some(focus) = self.audio_focus.as_mut() {
                     if focus.owner == owner && self.audio_playing.iter().all(|x| x != &owner) {
@@ -2490,6 +2518,7 @@ fn main() -> wry::Result<()> {
         hard_ram_limiter,
         hard_ram_limit_applied,
         audio_playing: HashSet::new(),
+        audio_frames: HashMap::new(),
         audio_focus: None,
         zoom_levels: HashMap::new(),
         passwords: password_vault,
