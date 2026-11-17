@@ -194,8 +194,11 @@ const AUDIO_FOCUS_SCRIPT: &str = r#"
   try{const P=HTMLMediaElement.prototype,op=P.play;P.play=function(){try{if(!known.has(this)){known.add(this);['play','playing','pause','ended','emptied','volumechange'].forEach(t=>this.addEventListener(t,sched,true))}}catch(_){}return op.apply(this,arguments)}}catch(_){}
   window.addEventListener('pagehide',()=>{if(last!=='paused'){last='paused';post('paused')}});
   const frames=cmd=>{try{document.querySelectorAll('iframe,frame').forEach(f=>{try{f.contentWindow.postMessage({__rakAudio:cmd},'*')}catch(_){}})}catch(_){}};
-  window.__rakAudioPause=()=>{media().forEach(m=>{if(!m.paused){pausedByUs.add(m);m.pause()}});frames('pause')};
-  window.__rakAudioResume=()=>{restoring=true;pausedByUs.forEach(m=>{if(m.paused&&!m.ended){const p=m.play();if(p&&p.catch)p.catch(()=>{})}});pausedByUs.clear();frames('resume');setTimeout(()=>{restoring=false;last=current()},1200)};
+  const fadeTimers=new Map(), fadedVolumes=new Map();
+  const restoreVolume=m=>{if(fadedVolumes.has(m)){m.volume=fadedVolumes.get(m);fadedVolumes.delete(m)}};
+  window.__rakAudioPause=()=>{fadeTimers.forEach(t=>clearInterval(t));fadeTimers.clear();media().forEach(m=>{restoreVolume(m);if(!m.paused){pausedByUs.add(m);m.pause()}});frames('pause')};
+  window.__rakAudioPauseWithFade=()=>{const active=media().filter(m=>!m.paused&&!m.ended&&!m.muted&&m.volume>0);if(!active.length){window.__rakAudioPause();return}active.forEach(m=>{if(!fadedVolumes.has(m))fadedVolumes.set(m,m.volume);const from=m.volume,started=performance.now();const timer=setInterval(()=>{const p=Math.min(1,(performance.now()-started)/180);if(m.paused){clearInterval(timer);fadeTimers.delete(m);return}m.volume=Math.max(0,from*(1-p));if(p>=1){clearInterval(timer);fadeTimers.delete(m);pausedByUs.add(m);m.pause()}},20);fadeTimers.set(m,timer)});frames('pause')};
+  window.__rakAudioResume=()=>{restoring=true;fadeTimers.forEach(t=>clearInterval(t));fadeTimers.clear();pausedByUs.forEach(m=>{restoreVolume(m);if(m.paused&&!m.ended){const p=m.play();if(p&&p.catch)p.catch(()=>{})}});pausedByUs.clear();frames('resume');setTimeout(()=>{restoring=false;last=current()},1200)};
   window.addEventListener('message',e=>{if(e.source!==window.parent||!e.data||!e.data.__rakAudio)return;e.data.__rakAudio==='pause'?window.__rakAudioPause():window.__rakAudioResume()});
 })();
 "#;
@@ -342,24 +345,51 @@ fn custom_asset(name: &str) -> Option<Vec<u8>> {
 
 fn builtin_asset(design: &str, kind: &str, dark: bool) -> Option<&'static [u8]> {
     match (design, kind, dark) {
-        ("design-1", "background", _) => Some(include_bytes!("../assets/designs/design-1-background.jpg")),
-        ("design-1", "icon", true) => Some(include_bytes!("../assets/designs/design-1-icon-dark.png")),
-        ("design-1", "icon", false) => Some(include_bytes!("../assets/designs/design-1-icon-light.png")),
-        ("design-2", "background", _) => Some(include_bytes!("../assets/designs/design-2-background.jpg")),
-        ("design-2", "icon", true) => Some(include_bytes!("../assets/designs/design-2-icon-dark.png")),
-        ("design-2", "icon", false) => Some(include_bytes!("../assets/designs/design-2-icon-light.png")),
-        ("design-3", "background", _) => Some(include_bytes!("../assets/designs/design-3-background.jpg")),
-        ("design-3", "icon", true) => Some(include_bytes!("../assets/designs/design-3-icon-dark.png")),
-        ("design-3", "icon", false) => Some(include_bytes!("../assets/designs/design-3-icon-light.png")),
-        ("design-4", "background", _) => Some(include_bytes!("../assets/designs/design-4-background.jpg")),
-        ("design-4", "icon", true) => Some(include_bytes!("../assets/designs/design-4-icon-dark.png")),
-        ("design-4", "icon", false) => Some(include_bytes!("../assets/designs/design-4-icon-light.png")),
+        ("design-1", "background", _) => {
+            Some(include_bytes!("../assets/designs/design-1-background.jpg"))
+        }
+        ("design-1", "icon", true) => {
+            Some(include_bytes!("../assets/designs/design-1-icon-dark.png"))
+        }
+        ("design-1", "icon", false) => {
+            Some(include_bytes!("../assets/designs/design-1-icon-light.png"))
+        }
+        ("design-2", "background", _) => {
+            Some(include_bytes!("../assets/designs/design-2-background.jpg"))
+        }
+        ("design-2", "icon", true) => {
+            Some(include_bytes!("../assets/designs/design-2-icon-dark.png"))
+        }
+        ("design-2", "icon", false) => {
+            Some(include_bytes!("../assets/designs/design-2-icon-light.png"))
+        }
+        ("design-3", "background", _) => {
+            Some(include_bytes!("../assets/designs/design-3-background.jpg"))
+        }
+        ("design-3", "icon", true) => {
+            Some(include_bytes!("../assets/designs/design-3-icon-dark.png"))
+        }
+        ("design-3", "icon", false) => {
+            Some(include_bytes!("../assets/designs/design-3-icon-light.png"))
+        }
+        ("design-4", "background", _) => {
+            Some(include_bytes!("../assets/designs/design-4-background.jpg"))
+        }
+        ("design-4", "icon", true) => {
+            Some(include_bytes!("../assets/designs/design-4-icon-dark.png"))
+        }
+        ("design-4", "icon", false) => {
+            Some(include_bytes!("../assets/designs/design-4-icon-light.png"))
+        }
         _ => None,
     }
 }
 
 fn asset_data_url(bytes: &[u8], mime: &str) -> String {
-    format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
+    format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    )
 }
 
 fn home_background_url(settings: &store::Settings) -> String {
@@ -373,7 +403,10 @@ fn home_background_url(settings: &store::Settings) -> String {
         };
         (custom_asset(&settings.custom_background), mime)
     } else {
-        (builtin_asset(&settings.brand_design, "background", false).map(|b| b.to_vec()), "image/jpeg")
+        (
+            builtin_asset(&settings.brand_design, "background", false).map(|b| b.to_vec()),
+            "image/jpeg",
+        )
     };
     bytes
         .as_deref()
@@ -384,7 +417,11 @@ fn home_background_url(settings: &store::Settings) -> String {
 fn window_icon(settings: &store::Settings) -> Option<Icon> {
     let dark = settings.design_mode != "light";
     let bytes = if settings.brand_design == "custom" {
-        let name = if dark { &settings.custom_icon_dark } else { &settings.custom_icon_light };
+        let name = if dark {
+            &settings.custom_icon_dark
+        } else {
+            &settings.custom_icon_light
+        };
         custom_asset(name)
             .or_else(|| custom_asset(&settings.custom_icon_dark))
             .or_else(|| builtin_asset("design-1", "icon", dark).map(|b| b.to_vec()))
@@ -679,7 +716,10 @@ impl State {
     }
 
     fn audio_eval(&self, owner: &str, script: &str) {
-        if let Some(id) = owner.strip_prefix("tab:").and_then(|v| v.parse::<u32>().ok()) {
+        if let Some(id) = owner
+            .strip_prefix("tab:")
+            .and_then(|v| v.parse::<u32>().ok())
+        {
             if let Some(t) = self.tabs.iter().find(|t| t.id == id && t.kind == Kind::Web) {
                 let _ = t.view.evaluate_script(script);
             }
@@ -691,12 +731,20 @@ impl State {
     }
 
     fn audio_finish_focus(&mut self) {
-        let Some(focus) = self.audio_focus.take() else { return };
-        self.audio_eval(&focus.owner, "window.__rakAudioPause&&window.__rakAudioPause();");
+        let Some(focus) = self.audio_focus.take() else {
+            return;
+        };
+        self.audio_eval(
+            &focus.owner,
+            "window.__rakAudioPause&&window.__rakAudioPause();",
+        );
         self.audio_playing.remove(&focus.owner);
         self.audio_frames.remove(&focus.owner);
         for owner in focus.resume {
-            self.audio_eval(&owner, "window.__rakAudioResume&&window.__rakAudioResume();");
+            self.audio_eval(
+                &owner,
+                "window.__rakAudioResume&&window.__rakAudioResume();",
+            );
             self.audio_playing.insert(owner);
         }
     }
@@ -722,7 +770,10 @@ impl State {
         let (state, frame) = state.split_once('@').unwrap_or((state, ""));
         match state {
             "playing" => {
-                self.audio_frames.entry(owner.clone()).or_default().insert(frame.to_string());
+                self.audio_frames
+                    .entry(owner.clone())
+                    .or_default()
+                    .insert(frame.to_string());
                 let old_resume = self
                     .audio_focus
                     .as_ref()
@@ -735,15 +786,22 @@ impl State {
                     .cloned()
                     .collect();
                 for other in &others {
-                    self.audio_eval(other, "window.__rakAudioPause&&window.__rakAudioPause();");
+                    self.audio_eval(other, "window.__rakAudioPauseWithFade?window.__rakAudioPauseWithFade():window.__rakAudioPause&&window.__rakAudioPause();");
                     self.audio_playing.remove(other);
                     self.audio_frames.remove(other);
                 }
-                let mut resume: Vec<String> = old_resume.into_iter().filter(|x| x != &owner).collect();
+                let mut resume: Vec<String> =
+                    old_resume.into_iter().filter(|x| x != &owner).collect();
                 for other in others {
-                    if !resume.contains(&other) { resume.push(other); }
+                    if !resume.contains(&other) {
+                        resume.push(other);
+                    }
                 }
-                self.audio_focus = Some(AudioFocus { owner: owner.clone(), resume, deadline: None });
+                self.audio_focus = Some(AudioFocus {
+                    owner: owner.clone(),
+                    resume,
+                    deadline: None,
+                });
                 self.audio_playing.insert(owner);
             }
             "paused" | "ended" => {
@@ -757,7 +815,12 @@ impl State {
                 self.audio_playing.remove(&owner);
                 if let Some(focus) = self.audio_focus.as_mut() {
                     if focus.owner == owner && self.audio_playing.iter().all(|x| x != &owner) {
-                        focus.deadline = Some(Instant::now() + Duration::from_secs(self.store.settings.audio_cooldown_secs.clamp(1, 10) as u64));
+                        focus.deadline = Some(
+                            Instant::now()
+                                + Duration::from_secs(
+                                    self.store.settings.audio_cooldown_secs.clamp(1, 10) as u64,
+                                ),
+                        );
                     }
                 }
             }
@@ -766,7 +829,12 @@ impl State {
     }
 
     fn audio_tick(&mut self) {
-        if self.audio_focus.as_ref().and_then(|f| f.deadline).is_some_and(|d| d <= Instant::now()) {
+        if self
+            .audio_focus
+            .as_ref()
+            .and_then(|f| f.deadline)
+            .is_some_and(|d| d <= Instant::now())
+        {
             self.audio_finish_focus();
         }
     }
@@ -774,19 +842,29 @@ impl State {
     fn apply_zoom(&self, owner: &str) {
         let factor = self.zoom_levels.get(owner).copied().unwrap_or(1.0);
         let script = format!("document.documentElement.style.zoom='{}';", factor);
-        if let Some(id) = owner.strip_prefix("tab:").and_then(|v| v.parse::<u32>().ok()) {
+        if let Some(id) = owner
+            .strip_prefix("tab:")
+            .and_then(|v| v.parse::<u32>().ok())
+        {
             if let Some(t) = self.tabs.iter().find(|t| t.id == id && t.kind == Kind::Web) {
                 let _ = t.view.evaluate_script(&script);
             }
         } else if let Some(app) = owner.strip_prefix("panel:") {
-            if let Some(view) = self.panels.get(app) { let _ = view.evaluate_script(&script); }
+            if let Some(view) = self.panels.get(app) {
+                let _ = view.evaluate_script(&script);
+            }
         }
     }
 
     fn zoom_message(&mut self, owner: String, direction: &str) {
         let current = self.zoom_levels.get(&owner).copied().unwrap_or(1.0);
-        let next = if direction == "in" { current + 0.1 } else { current - 0.1 };
-        self.zoom_levels.insert(owner.clone(), (next.clamp(0.5, 2.5) * 10.0).round() / 10.0);
+        let next = if direction == "in" {
+            current + 0.1
+        } else {
+            current - 0.1
+        };
+        self.zoom_levels
+            .insert(owner.clone(), (next.clamp(0.5, 2.5) * 10.0).round() / 10.0);
         self.apply_zoom(&owner);
     }
 
@@ -1425,7 +1503,8 @@ impl State {
             return;
         }
         if self.open.as_deref() == Some(app) {
-            self.audio_release_owner(&format!("panel:{app}"));
+            // Das Panel wird nur ausgeblendet; die WebView bleibt erhalten, damit
+            // Spotify beim Schließen des Seitenfensters weiter abspielen kann.
             self.open = None;
         } else {
             if !self.panels.contains_key(app) {
@@ -1444,9 +1523,13 @@ impl State {
                 let panel_owner = app.to_string();
                 let b = b.with_ipc_handler(move |req| {
                     if let Some(state) = req.body().strip_prefix("audio-focus:") {
-                        let _ = panel_proxy.send_event(UserEvent::Ipc(format!("audio-focus-panel:{panel_owner}:{state}")));
+                        let _ = panel_proxy.send_event(UserEvent::Ipc(format!(
+                            "audio-focus-panel:{panel_owner}:{state}"
+                        )));
                     } else if let Some(direction) = req.body().strip_prefix("zoom:") {
-                        let _ = panel_proxy.send_event(UserEvent::Ipc(format!("zoom-panel:{panel_owner}:{direction}")));
+                        let _ = panel_proxy.send_event(UserEvent::Ipc(format!(
+                            "zoom-panel:{panel_owner}:{direction}"
+                        )));
                     }
                 });
                 if let Ok(v) = attach(b, window, &self.host) {
@@ -2240,8 +2323,13 @@ impl State {
         let Some((header, encoded)) = data.split_once(',') else {
             return json!({"ok": false, "error": "Ungültige Bilddatei."});
         };
-        let mime = header.strip_prefix("data:").and_then(|x| x.strip_suffix(";base64"));
-        if !matches!(mime, Some("image/png") | Some("image/jpeg") | Some("image/webp")) {
+        let mime = header
+            .strip_prefix("data:")
+            .and_then(|x| x.strip_suffix(";base64"));
+        if !matches!(
+            mime,
+            Some("image/png") | Some("image/jpeg") | Some("image/webp")
+        ) {
             return json!({"ok": false, "error": "Nur PNG, JPEG oder WebP werden unterstützt."});
         }
         let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(encoded) else {

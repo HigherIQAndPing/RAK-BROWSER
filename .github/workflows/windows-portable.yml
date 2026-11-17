@@ -330,6 +330,13 @@ jobs:
           * Eigene Assets bleiben lokal unter %APPDATA%\RAK\designs und werden beim Update erhalten.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.21.0-Build erstellt.
           '@
+            'v0.22.0' = @'
+          ### Diese Version
+          * Spotify-Musik läuft weiter, wenn das Seitenfenster nur geschlossen beziehungsweise ausgeblendet wird.
+          * Beim Start eines neuen Sounds blendet RAK die bisherige Wiedergabe kurz weich aus, bevor sie pausiert.
+          * Die vier auswählbaren RAK-Motive und eigene Hintergrund-/AppIcon-Assets sind im Release enthalten.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.22.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

@@ -162,6 +162,9 @@ RAK-Motive      Unter Einstellungen > RAK-Motive stehen vier gelieferte Variante
                 Light-/Dark-Icons wechseln mit dem Browsermodus. Eigene PNG-,
                 JPEG- oder WebP-Dateien koennen ueber die beiden Import-Schaltflaechen
                 hinzugefuegt werden und bleiben lokal unter %APPDATA%\RAK\designs.
+Audio-Fokus     Das Schließen des Spotify-Seitenfensters blendet das Panel nur aus;
+                laufende Musik spielt weiter. Beim Wechsel zu einer neuen Wiedergabe
+                wird die bisherige Wiedergabe kurz weich ausgeblendet, bevor sie pausiert.
 RAM-Sparmodus   Entlaedt optional Hintergrund-Webseiten in about:blank und laedt
                 sie beim Aktivieren erneut. Cookies und WebView-Sitzung bleiben;
                 Seitenzustand wie Scrollposition muss neu aufgebaut werden.
