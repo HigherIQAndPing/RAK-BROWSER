@@ -43,6 +43,21 @@
   </section>
 
   <section class="card">
+    <h2>RAK-Motive</h2>
+    <div class="desc">Wähle eines der vier gelieferten Motive. Das linke Motiv wird als Homescreen-Hintergrund verwendet, die rechte Variante als Fenster- und Taskleistensymbol.</div>
+    <div class="row"><div class="label">Motiv<small>Light-/Dark-Icons werden automatisch passend zum Browsermodus verwendet.</small></div>
+      <select id="brand_design"><option value="design-1">Motiv 1 · RAK Schwarz/Weiß</option><option value="design-2">Motiv 2 · Navy/Kupfer</option><option value="design-3">Motiv 3 · Wappen</option><option value="design-4">Motiv 4 · Datenfluss</option><option value="custom">Eigenes Design</option></select>
+    </div>
+    <div class="import-row">
+      <input id="custom_background_file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+      <input id="custom_icon_file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+      <button id="custom_background_btn" type="button">＋ Eigenes Hintergrundbild</button>
+      <button id="custom_icon_btn" type="button">＋ Eigenes AppIcon</button>
+    </div>
+    <div id="design_import_status" class="tip" aria-live="polite">Eigene Dateien werden lokal unter %APPDATA%\RAK\designs gespeichert.</div>
+  </section>
+
+  <section class="card">
     <h2>Arbeitsspeicher</h2>
     <div class="desc">Der RAM-Sparmodus entlädt inaktive Webseiten und lädt sie beim Zurückwechseln neu. Das reduziert den Speicherbedarf der Hintergrundseiten; Scrollposition und nicht gespeicherter Seitenzustand gehen dabei verloren.</div>
     <div class="row"><div class="label">RAM-Limiter – Hintergrundseiten entladen<small>Es bleibt nur die aktive Webseite geladen. Cookies und Sitzung des Tabs bleiben erhalten.</small></div><input id="ram_saver" type="checkbox"></div>
@@ -118,6 +133,7 @@
     if (!s) return;
     $('search_engine').value = s.search_engine || 'duckduckgo';
     $('design_mode').value = (s.design_mode === 'modern' ? 'light' : s.design_mode === 'dashboard' ? 'dark' : s.design_mode) || 'dark';
+    $('brand_design').value = s.brand_design || 'design-1';
     $('auto_translate').checked = !!s.auto_translate;
     $('ram_saver').checked = !!s.ram_saver;
     $('audio_cooldown_secs').value = String(Math.min(10, Math.max(1, Number(s.audio_cooldown_secs) || 3)));
@@ -142,7 +158,7 @@
   function save() {
     const colors = {};
     document.querySelectorAll('[data-color]').forEach(input => colors[input.dataset.color] = input.value);
-    const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, auto_translate:$('auto_translate').checked, ram_saver:$('ram_saver').checked, audio_cooldown_secs:Number($('audio_cooldown_secs').value), hard_ram_limit_enabled:$('hard_ram_limit_enabled').checked, hard_ram_limit_mb:Number($('hard_ram_limit_mb').value), translate_lang:$('translate_lang').value, colors };
+    const settings = { search_engine:$('search_engine').value, design_mode:$('design_mode').value, brand_design:$('brand_design').value, auto_translate:$('auto_translate').checked, ram_saver:$('ram_saver').checked, audio_cooldown_secs:Number($('audio_cooldown_secs').value), hard_ram_limit_enabled:$('hard_ram_limit_enabled').checked, hard_ram_limit_mb:Number($('hard_ram_limit_mb').value), translate_lang:$('translate_lang').value, colors };
     if (window.rakApplyDesign) window.rakApplyDesign(settings.design_mode);
     send({t:'settings_save', ...settings});
     $('saved').textContent = 'Gespeichert';
@@ -151,12 +167,24 @@
   window.setData = d => { data = d; applySettings(d); };
   $('search_engine').addEventListener('change', save);
   $('design_mode').addEventListener('change', save);
+  $('brand_design').addEventListener('change', save);
   $('auto_translate').addEventListener('change', save);
   $('ram_saver').addEventListener('change', save);
   $('audio_cooldown_secs').addEventListener('change', save);
   $('hard_ram_limit_enabled').addEventListener('change', save);
   $('hard_ram_limit_mb').addEventListener('change', save);
   $('translate_lang').addEventListener('change', save);
+  function importDesign(kind, file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { send({t:'design_import', kind, name:file.name, data:String(reader.result)}); $('design_import_status').textContent = 'Asset wird übernommen …'; };
+    reader.readAsDataURL(file);
+  }
+  $('custom_background_btn').onclick = () => $('custom_background_file').click();
+  $('custom_icon_btn').onclick = () => $('custom_icon_file').click();
+  $('custom_background_file').onchange = e => importDesign('background', e.target.files[0]);
+  $('custom_icon_file').onchange = e => importDesign('icon', e.target.files[0]);
+  window.designImportResult = r => { $('design_import_status').textContent = r.ok ? 'Gespeichert und aktiviert. Das Motiv wird sofort angewendet.' : (r.error || 'Import fehlgeschlagen.'); };
   $('import_btn').addEventListener('click', () => {
     $('import_btn').disabled = true;
     $('import_status').textContent = 'Profil wird durchsucht …';

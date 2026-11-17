@@ -52,6 +52,12 @@ pub struct Settings {
     pub audio_cooldown_secs: u8,
     pub translate_lang: String,
     pub design_mode: String,
+    /// Ausgewähltes RAK-Branding: design-1 bis design-4 oder custom.
+    pub brand_design: String,
+    /// Dateinamen eigener Assets im Unterordner designs.
+    pub custom_background: String,
+    pub custom_icon_dark: String,
+    pub custom_icon_light: String,
     pub colors: ThemeColors,
 }
 
@@ -100,6 +106,10 @@ impl Default for Settings {
             audio_cooldown_secs: 3,
             translate_lang: "de".into(),
             design_mode: "dark".into(),
+            brand_design: "design-1".into(),
+            custom_background: String::new(),
+            custom_icon_dark: String::new(),
+            custom_icon_light: String::new(),
             colors: ThemeColors::default(),
         }
     }

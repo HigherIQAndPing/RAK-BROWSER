@@ -322,6 +322,14 @@ jobs:
           * Der nutzbare Bereich liegt zwischen 50 % und 250 %.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.20.0-Build erstellt.
           '@
+            'v0.21.0' = @'
+          ### Diese Version
+          * Vier wählbare RAK-Motive mit getrenntem Homescreen-Hintergrund und AppIcon.
+          * Light-/Dark-Iconvarianten wechseln automatisch mit dem Browsermodus.
+          * Eigene Hintergrundbilder und AppIcons können direkt in den Einstellungen importiert werden.
+          * Eigene Assets bleiben lokal unter %APPDATA%\RAK\designs und werden beim Update erhalten.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.21.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }

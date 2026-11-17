@@ -156,6 +156,12 @@ Import           In Einstellungen koennen kompatible Erweiterungen aus Chrome,
 Einstellungen   Zahnrad: Suchmaschine, automatische Uebersetzung, RAM-Sparmodus
                 und Farben fuer Tab-Leiste, Tabs, Werkzeugleiste,
                 Lesezeichenleiste, Seitenleiste, Akzent und Text anpassen.
+RAK-Motive      Unter Einstellungen > RAK-Motive stehen vier gelieferte Varianten
+                zur Auswahl. Das linke Bild wird als skalierender Homescreen-
+                Hintergrund eingesetzt, das rechte als Fenster-/Taskleistensymbol;
+                Light-/Dark-Icons wechseln mit dem Browsermodus. Eigene PNG-,
+                JPEG- oder WebP-Dateien koennen ueber die beiden Import-Schaltflaechen
+                hinzugefuegt werden und bleiben lokal unter %APPDATA%\RAK\designs.
 RAM-Sparmodus   Entlaedt optional Hintergrund-Webseiten in about:blank und laedt
                 sie beim Aktivieren erneut. Cookies und WebView-Sitzung bleiben;
                 Seitenzustand wie Scrollposition muss neu aufgebaut werden.

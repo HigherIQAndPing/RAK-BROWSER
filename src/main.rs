@@ -10,9 +10,11 @@ mod passwords;
 mod store;
 mod update;
 
+use base64::Engine;
 use islands::TabIslands;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{Duration, Instant};
@@ -21,7 +23,7 @@ use tao::{
     event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
     keyboard::{KeyCode, ModifiersState},
-    window::{Fullscreen, Window, WindowBuilder},
+    window::{Fullscreen, Icon, Window, WindowBuilder},
 };
 #[cfg(target_os = "windows")]
 use wry::WebViewBuilderExtWindows;
@@ -320,6 +322,80 @@ fn percent_encode(s: &str) -> String {
         }
     }
     out
+}
+
+const BUILTIN_DESIGNS: [&str; 4] = ["design-1", "design-2", "design-3", "design-4"];
+
+fn design_dir() -> PathBuf {
+    let dir = store::data_dir().join("designs");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}
+
+fn custom_asset(name: &str) -> Option<Vec<u8>> {
+    let path = PathBuf::from(name);
+    if name.is_empty() || path.file_name()?.to_string_lossy() != name {
+        return None;
+    }
+    fs::read(design_dir().join(path)).ok()
+}
+
+fn builtin_asset(design: &str, kind: &str, dark: bool) -> Option<&'static [u8]> {
+    match (design, kind, dark) {
+        ("design-1", "background", _) => Some(include_bytes!("../assets/designs/design-1-background.jpg")),
+        ("design-1", "icon", true) => Some(include_bytes!("../assets/designs/design-1-icon-dark.png")),
+        ("design-1", "icon", false) => Some(include_bytes!("../assets/designs/design-1-icon-light.png")),
+        ("design-2", "background", _) => Some(include_bytes!("../assets/designs/design-2-background.jpg")),
+        ("design-2", "icon", true) => Some(include_bytes!("../assets/designs/design-2-icon-dark.png")),
+        ("design-2", "icon", false) => Some(include_bytes!("../assets/designs/design-2-icon-light.png")),
+        ("design-3", "background", _) => Some(include_bytes!("../assets/designs/design-3-background.jpg")),
+        ("design-3", "icon", true) => Some(include_bytes!("../assets/designs/design-3-icon-dark.png")),
+        ("design-3", "icon", false) => Some(include_bytes!("../assets/designs/design-3-icon-light.png")),
+        ("design-4", "background", _) => Some(include_bytes!("../assets/designs/design-4-background.jpg")),
+        ("design-4", "icon", true) => Some(include_bytes!("../assets/designs/design-4-icon-dark.png")),
+        ("design-4", "icon", false) => Some(include_bytes!("../assets/designs/design-4-icon-light.png")),
+        _ => None,
+    }
+}
+
+fn asset_data_url(bytes: &[u8], mime: &str) -> String {
+    format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
+fn home_background_url(settings: &store::Settings) -> String {
+    let (bytes, mime) = if settings.brand_design == "custom" {
+        let mime = if settings.custom_background.ends_with(".png") {
+            "image/png"
+        } else if settings.custom_background.ends_with(".webp") {
+            "image/webp"
+        } else {
+            "image/jpeg"
+        };
+        (custom_asset(&settings.custom_background), mime)
+    } else {
+        (builtin_asset(&settings.brand_design, "background", false).map(|b| b.to_vec()), "image/jpeg")
+    };
+    bytes
+        .as_deref()
+        .map(|b| format!("url(\"{}\")", asset_data_url(b, mime)))
+        .unwrap_or_else(|| "none".into())
+}
+
+fn window_icon(settings: &store::Settings) -> Option<Icon> {
+    let dark = settings.design_mode != "light";
+    let bytes = if settings.brand_design == "custom" {
+        let name = if dark { &settings.custom_icon_dark } else { &settings.custom_icon_light };
+        custom_asset(name)
+            .or_else(|| custom_asset(&settings.custom_icon_dark))
+            .or_else(|| builtin_asset("design-1", "icon", dark).map(|b| b.to_vec()))
+    } else {
+        builtin_asset(&settings.brand_design, "icon", dark).map(|b| b.to_vec())
+    }?;
+    let image = image::load_from_memory(&bytes)
+        .ok()?
+        .resize_exact(256, 256, image::imageops::FilterType::Lanczos3)
+        .to_rgba8();
+    Icon::from_rgba(image.into_raw(), 256, 256).ok()
 }
 
 /// Ordner für Cookies, Logins und Seitendaten: fest in %APPDATA%\RAK\WebView2, NICHT neben der
@@ -896,6 +972,10 @@ impl State {
             "window.rakApplyDesign && window.rakApplyDesign({});",
             json!(self.store.settings.design_mode)
         );
+        let home_js = format!(
+            "window.__rakSetHomeBackground && window.__rakSetHomeBackground({});",
+            json!(home_background_url(&self.store.settings))
+        );
         let _ = self.ui.evaluate_script(&js);
         let _ = self.titlebar.evaluate_script(&js);
         let _ = self.side.evaluate_script(&js);
@@ -914,6 +994,9 @@ impl State {
         }
         for t in self.tabs.iter().filter(|t| t.kind != Kind::Web) {
             let _ = t.view.evaluate_script(&js);
+            if t.kind == Kind::Home {
+                let _ = t.view.evaluate_script(&home_js);
+            }
         }
     }
 
@@ -1057,7 +1140,10 @@ impl State {
         let (w, h) = window_size(window);
         let x = self.content_x(w);
         let html = match kind {
-            Kind::Home => include_str!("home.html").to_string(),
+            Kind::Home => include_str!("home.html").replace(
+                "__RAK_HOME_BACKGROUND__",
+                &home_background_url(&self.store.settings),
+            ),
             Kind::History => self.store.history_page(),
             Kind::Extensions => ext::page(),
             Kind::Settings => include_str!("settings.html").replace(
@@ -2078,6 +2164,11 @@ impl State {
                 self.store.settings.design_mode = normalized.to_string();
             }
         }
+        if let Some(design) = v["brand_design"].as_str() {
+            if BUILTIN_DESIGNS.contains(&design) || design == "custom" {
+                self.store.settings.brand_design = design.to_string();
+            }
+        }
         if let Some(engine) = v["search_engine"].as_str() {
             if ["google", "duckduckgo", "ecosia", "bing"].contains(&engine) {
                 self.store.settings.search_engine = engine.to_string();
@@ -2143,6 +2234,50 @@ impl State {
         self.push_settings();
     }
 
+    fn import_design(&mut self, v: &Value) -> Value {
+        let kind = v["kind"].as_str().unwrap_or("");
+        let data = v["data"].as_str().unwrap_or("");
+        let Some((header, encoded)) = data.split_once(',') else {
+            return json!({"ok": false, "error": "Ungültige Bilddatei."});
+        };
+        let mime = header.strip_prefix("data:").and_then(|x| x.strip_suffix(";base64"));
+        if !matches!(mime, Some("image/png") | Some("image/jpeg") | Some("image/webp")) {
+            return json!({"ok": false, "error": "Nur PNG, JPEG oder WebP werden unterstützt."});
+        }
+        let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(encoded) else {
+            return json!({"ok": false, "error": "Bild konnte nicht gelesen werden."});
+        };
+        if bytes.is_empty() || bytes.len() > 15 * 1024 * 1024 {
+            return json!({"ok": false, "error": "Das Bild muss zwischen 1 Byte und 15 MB groß sein."});
+        }
+        if kind != "background" && kind != "icon" {
+            return json!({"ok": false, "error": "Unbekannter Asset-Typ."});
+        }
+        let ext = match mime.unwrap() {
+            "image/png" => "png",
+            "image/webp" => "webp",
+            _ => "jpg",
+        };
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        let filename = format!("custom-{kind}-{stamp}.{ext}");
+        if fs::write(design_dir().join(&filename), bytes).is_err() {
+            return json!({"ok": false, "error": "Asset konnte nicht gespeichert werden."});
+        }
+        if kind == "background" {
+            self.store.settings.custom_background = filename;
+        } else {
+            self.store.settings.custom_icon_dark = filename.clone();
+            self.store.settings.custom_icon_light = filename;
+        }
+        self.store.settings.brand_design = "custom".into();
+        self.store.save_settings();
+        self.push_settings();
+        json!({"ok": true})
+    }
+
     /// Nachrichten der internen Seiten (JSON)
     /// Gibt true zurück, wenn das Programm beendet werden soll (Neustart).
     fn page_message(&mut self, window: &Window, msg: &str) -> bool {
@@ -2153,6 +2288,17 @@ impl State {
         match v["t"].as_str() {
             Some("settings_save") => {
                 self.update_settings(&v);
+                window.set_window_icon(window_icon(&self.store.settings));
+                return false;
+            }
+            Some("design_import") => {
+                let result = self.import_design(&v);
+                window.set_window_icon(window_icon(&self.store.settings));
+                for t in self.tabs.iter().filter(|t| t.kind == Kind::Settings) {
+                    let _ = t
+                        .view
+                        .evaluate_script(&format!("window.designImportResult({});", result));
+                }
                 return false;
             }
             Some("open") => {
@@ -2427,6 +2573,7 @@ fn main() -> wry::Result<()> {
         .with_inner_size(tao::dpi::LogicalSize::new(1280.0, 800.0))
         .build(&event_loop)
         .expect("Fenster konnte nicht erstellt werden");
+    window.set_window_icon(window_icon(&store.settings));
 
     let host = make_host(&window);
     let password_vault = passwords::Vault::open(&store::data_dir())
