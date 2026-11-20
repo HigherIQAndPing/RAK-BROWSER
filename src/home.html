@@ -98,9 +98,11 @@ body{overflow:auto;background-image:var(--rak-home-image);background-size:cover;
 h1{font-size:clamp(30px,4vw,40px);line-height:1.1;font-weight:700}
 .brand{margin-top:8px;color:var(--accent);font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase}
 .search{display:flex;gap:8px;align-items:center;max-width:720px;margin:0 auto 34px;padding:6px 6px 6px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--recess);box-shadow:var(--edge);transition:border-color .15s,box-shadow .15s}
-.search:focus-within{border-color:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 20%,transparent)}
+.search:focus-within{border-color:var(--accent)}
+.search:focus-within{box-shadow:0 0 8px color-mix(in srgb,var(--accent) 20%,transparent)}
 .search .lead{color:var(--accent)}
 .search input{flex:1;min-width:0;height:36px;border:0;outline:0;border-radius:var(--r-sm);background:transparent;color:var(--text);padding:0 4px;font-size:15px;user-select:text;box-shadow:none}
+.search input:focus{background:transparent}
 .search input:focus{box-shadow:none;border:0}
 .search button{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border:0;border-radius:var(--r-sm);color:var(--on-accent);background:var(--accent);font-family:var(--font-mono);font-size:12px;font-weight:600;transition:background .15s,transform .08s}
 .search button:hover{background:var(--cyan-hover)}.search button:active{transform:scale(.98)}
