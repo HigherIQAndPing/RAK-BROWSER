@@ -227,7 +227,7 @@
     mode = (mode === 'light' || mode === 'modern') ? 'light' : 'dark';
     document.documentElement.dataset.rakDesign = mode;
     const root = document.documentElement.style;
-    const v = mode === 'light' ? { bg:'#ffffff', panel:'#ffffff', panel2:'#f1f1f1', toolbar:'#ffffff', bookmark:'#f5f5f5', tab:'#ffffff', accent:'#111111', onAccent:'#ffffff', text:'#000000', dim:'#555555', line:'#d6d6d6' } : { bg:'#080808', panel:'#111111', panel2:'#1b1b1b', toolbar:'#101010', bookmark:'#080808', tab:'#151515', accent:'#ffffff', onAccent:'#000000', text:'#ffffff', dim:'#bdbdbd', line:'#303030' };
+    const v = mode === 'light' ? { bg:'#ffffff', panel:'#ffffff', panel2:'#f1f1f1', toolbar:'#ffffff', bookmark:'#f5f5f5', tab:'#ffffff', accent:'#111111', onAccent:'#ffffff', text:'#000000', dim:'#555555', line:'#d6d6d6' } : { bg:'#0b0d11', panel:'#12151b', panel2:'#1a1f28', toolbar:'#0f1217', bookmark:'#0b0d11', tab:'#12151b', accent:'#00d2ff', onAccent:'#0b0d11', text:'#f1f5f9', dim:'#94a3b8', line:'#252c38' };
     Object.entries(v).forEach(([k,val])=>root.setProperty('--'+k,val));
     document.body.classList.toggle('light-design', mode === 'light');
     document.body.classList.toggle('dark-design', mode === 'dark');

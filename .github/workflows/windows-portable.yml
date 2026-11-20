@@ -337,6 +337,13 @@ jobs:
           * Die vier auswählbaren RAK-Motive und eigene Hintergrund-/AppIcon-Assets sind im Release enthalten.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.22.0-Build erstellt.
           '@
+            'v0.23.0' = @'
+          ### Diese Version
+          * Neues Design "Tactical Cyberpunk Precision": einheitliche Farb-Tokens, Cyan-Akzent, Mono-Beschriftungen und Inline-SVG-Icons.
+          * Startseite, Einstellungen, Downloads, Verlauf, Lesezeichen, Erweiterungen und Passwörter wurden neu gestaltet.
+          * Die gesamte Logik und alle IPC-Aufrufe der Seiten sind unverändert; keine externen Schriften oder Frameworks.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.23.0-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }
