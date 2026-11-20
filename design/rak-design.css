@@ -1,0 +1,81 @@
+/* ====== RAK Design System · Tactical Cyberpunk Precision (Quelle: DESIGN.md aus Google Stitch) ======
+   Nur natives CSS. Keine externen Schriften/Frameworks: Schriften werden über lokale Namen gesucht,
+   sonst greifen die Windows-Systemschriften. Alle Komponenten benutzen die Variablen
+   --bg --panel --panel2 --line --accent --on-accent --text --dim (+ --hover-line), damit das
+   Light/Dark-Umschalten von RAK (rakApplyDesign) und die eigenen Farben weiter funktionieren. */
+:root{
+  color-scheme:dark;
+  /* Palette (DESIGN.md → Colors) */
+  --canvas:#0b0d11; --surface-1:#12151b; --surface-2:#1a1f28; --border:#252c38;
+  --cyan:#00d2ff; --cyan-hover:#38bdf8; --sky:#0ea5e9;
+  --text-hi:#f1f5f9; --text-mid:#94a3b8; --text-lo:#475569; --crimson:#f43f5e;
+  /* Semantische Namen, die RAK schon kennt (werden vom Theme überschrieben) */
+  --bg:var(--canvas); --panel:var(--surface-1); --panel2:var(--surface-2); --line:var(--border);
+  --accent:var(--cyan); --on-accent:#0b0d11; --text:var(--text-hi); --dim:var(--text-mid);
+  --hover-line:var(--sky); --danger:var(--crimson); --ok:#3ddc84; --warn:#ffd24a;
+  /* Typografie */
+  --font-display:"Space Grotesk","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --font-ui:"Geist","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","Cascadia Mono","Cascadia Code",Consolas,ui-monospace,monospace;
+  /* Form & Tiefe */
+  --r-xs:2px; --r-sm:4px; --r-md:6px;
+  --recess:color-mix(in srgb,var(--bg) 70%,var(--panel));
+  --edge:inset 0 1px 0 color-mix(in srgb,var(--text) 5%,transparent);
+  --glow:0 0 0 1px var(--accent),0 0 12px color-mix(in srgb,var(--accent) 18%,transparent);
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body.rak-ds{background:var(--bg);color:var(--text);font:13px/18px var(--font-ui);-webkit-font-smoothing:antialiased;animation:rak-fade .22s var(--ease) both}
+:where(.rak-ds) ::selection{background:color-mix(in srgb,var(--accent) 35%,transparent);color:var(--text)}
+:where(.rak-ds) h1,:where(.rak-ds) h2,:where(.rak-ds) h3{font-family:var(--font-display);letter-spacing:-.02em;margin:0}
+:where(.rak-ds) code,:where(.rak-ds) kbd,:where(.rak-ds) .mono{font-family:var(--font-mono)}
+:where(.rak-ds) :focus-visible{outline:0;box-shadow:var(--glow)}
+:where(.rak-ds) button,:where(.rak-ds) select,:where(.rak-ds) input{font-family:inherit;font-size:inherit}
+:where(.rak-ds) button{cursor:pointer}
+:where(.rak-ds) button:disabled{opacity:.45;cursor:default}
+/* Dünne, dunkle Scrollbalken */
+.rak-ds{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+:where(.rak-ds) ::-webkit-scrollbar{width:8px;height:8px}
+:where(.rak-ds) ::-webkit-scrollbar-thumb{background:var(--line);border-radius:var(--r-sm)}
+:where(.rak-ds) ::-webkit-scrollbar-thumb:hover{background:var(--hover-line)}
+/* Icons: inline SVG-Sprite, Größe über --s */
+.ds-i{width:var(--s,16px);height:var(--s,16px);flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:inline-block;vertical-align:middle}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+/* Beschriftungen in Mono (Telemetrie-Look) */
+.eyebrow,.tag{font-family:var(--font-mono);font-size:10px;line-height:14px;font-weight:500;letter-spacing:.08em;text-transform:uppercase}
+.eyebrow{color:var(--accent)}
+/* Buttons */
+.ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:32px;padding:6px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel2);color:var(--text);font-weight:500;box-shadow:var(--edge);transition:border-color .15s var(--ease),color .15s var(--ease),background .15s var(--ease),transform .08s}
+.ds-btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+.ds-btn:active:not(:disabled){transform:scale(.98)}
+.ds-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.ds-btn.primary:hover:not(:disabled){background:var(--cyan-hover);border-color:var(--cyan-hover)}
+.ds-btn.danger{color:var(--danger);background:transparent;border-color:color-mix(in srgb,var(--danger) 40%,var(--line))}
+.ds-btn.danger:hover:not(:disabled){background:var(--danger);border-color:var(--danger);color:#fff}
+.ds-btn.mini{min-height:26px;padding:3px 10px;font-size:12px}
+.ds-icon-btn{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid transparent;border-radius:var(--r-sm);background:transparent;color:var(--dim);transition:all .15s var(--ease)}
+.ds-icon-btn:hover:not(:disabled){background:var(--panel2);border-color:var(--line);color:var(--text)}
+/* Eingabefelder */
+.ds-field,:where(.rak-ds) input[type=text],:where(.rak-ds) input:not([type]),:where(.rak-ds) input[type=search],:where(.rak-ds) input[type=password]{height:34px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--recess);color:var(--text);outline:0;transition:border-color .15s,box-shadow .15s}
+.ds-field:focus,:where(.rak-ds) input[type=text]:focus,:where(.rak-ds) input:not([type]):focus,:where(.rak-ds) input[type=search]:focus,:where(.rak-ds) input[type=password]:focus{border-color:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 20%,transparent)}
+:where(.rak-ds) input::placeholder{color:var(--text-lo)}
+/* Auswahlfelder mit eingebettetem Pfeil (ohne Bild-URL) */
+:where(.rak-ds) select{appearance:none;-webkit-appearance:none;height:32px;padding:0 30px 0 11px;border:1px solid var(--line);border-radius:var(--r-sm);background-color:var(--panel2);color:var(--text);outline:0;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-size:5px 5px,5px 5px;background-position:calc(100% - 15px) 14px,calc(100% - 10px) 14px;background-repeat:no-repeat;transition:border-color .15s}
+:where(.rak-ds) select:hover:not(:disabled),:where(.rak-ds) select:focus{border-color:var(--accent)}
+:where(.rak-ds) select:disabled{opacity:.45;cursor:default}
+:where(.rak-ds) select option{background:var(--panel);color:var(--text)}
+/* Schalter (Toggle 36×18) und Checkboxen: gleiches <input type=checkbox>, nur anderes Aussehen */
+:where(.rak-ds) input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:36px;height:18px;margin:0;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;transition:background .14s var(--ease),border-color .14s var(--ease)}
+:where(.rak-ds) input[type=checkbox]::after{content:"";position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:transform .14s var(--ease),background .14s var(--ease)}
+:where(.rak-ds) input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+:where(.rak-ds) input[type=checkbox]:checked::after{transform:translateX(18px);background:#fff}
+:where(.rak-ds) input[type=checkbox]:disabled{opacity:.45;cursor:default}
+/* Module (Karten) */
+.ds-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--edge)}
+/* Tastenkürzel-Chips */
+:where(.rak-ds) kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:var(--r-xs);background:var(--panel2);color:var(--dim);font-size:10px;line-height:14px}
+@keyframes rak-fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes rak-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){body.rak-ds{animation:none}:where(.rak-ds) *{transition:none!important;animation:none!important}}
