@@ -344,6 +344,11 @@ jobs:
           * Die gesamte Logik und alle IPC-Aufrufe der Seiten sind unverändert; keine externen Schriften oder Frameworks.
           * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.23.0-Build erstellt.
           '@
+            'v0.23.1' = @'
+          ### Diese Version
+          * Neues Design "Tactical Cyberpunk Precision" (siehe v0.23.0) – der Release-Build von v0.23.0 war an einem UI-Test gescheitert, dies ist die korrigierte Version.
+          * Windows-x64-ZIP wird nach erfolgreichen UI- und Rust-Tests aus dem geprüften v0.23.1-Build erstellt.
+          '@
           }
           $featureNotes = $changes[$env:RELEASE_TAG]
           if (-not $featureNotes) { $featureNotes = "### Diese Version`n* Technische Verbesserungen und Fehlerbehebungen.`n" }
